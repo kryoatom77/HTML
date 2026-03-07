@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IA</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080b0f;
+    --surface: #0e1117;
+    --surface2: #141920;
+    --border: #1c2330;
+    --border2: #263040;
+    --accent: #00d4aa;
+    --accent2: #00a8ff;
+    --accent-dim: rgba(0,212,170,0.08);
+    --text: #d8e8f0;
+    --muted: #3d5060;
+    --muted2: #607080;
+    --red: #ff4f6a;
+    --yellow: #ffcc44;
+    --radius: 10px;
+    --sidebar-w: 258px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:'Outfit',sans-serif; }
+
+  .app {
+    display:grid;
+    grid-template-columns:var(--sidebar-w) 1fr;
+    height:100vh;
+    transition:grid-template-columns .25s ease;
+  }
+  .app.sidebar-hidden {
+    grid-template-columns:0 1fr;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background:var(--surface); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; overflow:hidden;
+    transition:opacity .25s ease;
+  }
+  .app.sidebar-hidden .sidebar {
+    opacity:0; pointer-events:none;
+  }
+
+  .logo-wrap {
+    padding:16px 14px 12px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:10px;
+  }
+
+  .logo-icon {
+    width:34px; height:34px; border-radius:10px; flex-shrink:0;
+    background:linear-gradient(135deg,#00d4aa,#00a8ff);
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; font-weight:700; color:#080b0f;
+    font-family:'Fira Code',monospace;
+  }
+
+  .logo-name { font-size:15px; font-weight:600; }
+  .logo-sub { font-size:10px; color:var(--muted2); font-family:'Fira Code',monospace; letter-spacing:.3px; }
+
+  .new-btn {
+    margin:10px 10px 6px; padding:9px 14px;
+    background:var(--accent-dim); border:1px solid rgba(0,212,170,0.2);
+    border-radius:var(--radius); color:var(--accent);
+    font-family:'Fira Code',monospace; font-size:12px;
+    cursor:pointer; display:flex; align-items:center; gap:8px;
+    transition:all .15s;
+  }
+  .new-btn:hover { background:rgba(0,212,170,0.13); border-color:rgba(0,212,170,0.4); }
+
+  .speed-badge {
+    margin:0 10px 6px; padding:7px 10px;
+    background:rgba(0,168,255,0.07); border:1px solid rgba(0,168,255,0.18);
+    border-radius:8px; font-size:11px; color:#60c8ff;
+    font-family:'Fira Code',monospace;
+    display:flex; align-items:center; gap:6px;
+  }
+
+  .hist-label {
+    padding:8px 14px 4px; font-size:10px; letter-spacing:1.5px;
+    text-transform:uppercase; color:var(--muted); font-family:'Fira Code',monospace;
+  }
+
+  .hist-list { flex:1; overflow-y:auto; padding:2px 6px; }
+  .hist-list::-webkit-scrollbar { width:3px; }
+  .hist-list::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
+
+  .hist-item {
+    padding:8px 10px; border-radius:8px; font-size:12px; color:var(--muted2);
+    cursor:pointer; display:flex; align-items:center; gap:8px;
+    transition:all .12s; white-space:nowrap; overflow:hidden;
+    text-overflow:ellipsis; border:1px solid transparent; margin-bottom:2px;
+  }
+  .hist-item:hover { background:var(--surface2); color:var(--text); }
+  .hist-item.active { background:var(--accent-dim); border-color:rgba(0,212,170,0.2); color:var(--accent); }
+  .hist-item .lbl { overflow:hidden; text-overflow:ellipsis; flex:1; }
+  .hist-item .del { margin-left:auto; opacity:0; font-size:13px; flex-shrink:0; }
+  .hist-item:hover .del { opacity:.5; }
+  .hist-item .del:hover { opacity:1 !important; color:var(--red); }
+
+  .sidebar-foot { padding:8px 10px 12px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:6px; }
+
+  .sfoot-btn {
+    padding:9px 12px; border:1px solid var(--border); border-radius:var(--radius);
+    background:transparent; color:var(--muted2);
+    font-family:'Fira Code',monospace; font-size:11px;
+    cursor:pointer; display:flex; align-items:center; gap:8px; transition:all .15s;
+  }
+  .sfoot-btn:hover { border-color:var(--border2); color:var(--text); background:var(--surface2); }
+
+  /* ── MAIN ── */
+  .main { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+  .topbar {
+    height:50px; padding:0 22px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--bg); flex-shrink:0;
+  }
+
+  .topbar-left { display:flex; align-items:center; gap:10px; }
+
+  .model-pill {
+    background:var(--surface2); border:1px solid var(--border2);
+    border-radius:20px; padding:4px 12px 4px 8px;
+    font-family:'Fira Code',monospace; font-size:11px; color:var(--muted2);
+    display:flex; align-items:center; gap:7px;
+  }
+
+  .sdot {
+    width:7px; height:7px; border-radius:50%;
+    background:var(--accent); box-shadow:0 0 7px var(--accent); flex-shrink:0;
+  }
+  .sdot.off { background:var(--red); box-shadow:0 0 7px var(--red); }
+
+  .top-btns { display:flex; gap:6px; }
+  .iBtn {
+    width:30px; height:30px; border-radius:7px; border:1px solid transparent;
+    background:transparent; color:var(--muted); cursor:pointer; font-size:13px;
+    display:flex; align-items:center; justify-content:center; transition:all .15s;
+  }
+  .iBtn:hover { background:var(--surface2); border-color:var(--border); color:var(--text); }
+  .iBtn.active { background:var(--accent-dim); border-color:rgba(0,212,170,0.25); color:var(--accent); }
+
+  /* ── MESSAGES ── */
+  .msgs-wrap { flex:1; overflow-y:auto; }
+  .msgs-wrap::-webkit-scrollbar { width:4px; }
+  .msgs-wrap::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
+
+  .msgs-inner { max-width:740px; margin:0 auto; padding:28px 22px 12px; }
+
+  .empty {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:60vh; gap:14px; text-align:center; opacity:.55; padding:40px;
+  }
+  .empty-icon {
+    width:58px; height:58px; border-radius:16px;
+    background:linear-gradient(135deg,rgba(0,212,170,.15),rgba(0,168,255,.15));
+    border:1px solid rgba(0,212,170,.2);
+    display:flex; align-items:center; justify-content:center; font-size:26px;
+  }
+  .empty-title { font-size:17px; font-weight:600; color:var(--text); }
+  .empty-sub { font-size:13px; color:var(--muted2); max-width:380px; line-height:1.65; }
+
+  .message { display:flex; gap:12px; margin-bottom:22px; animation:msgIn .18s ease; }
+  @keyframes msgIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+  .av {
+    width:26px; height:26px; border-radius:7px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:600; margin-top:2px;
+  }
+  .av.user {
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#080b0f; font-family:'Fira Code',monospace;
+  }
+  .av.ai {
+    background:linear-gradient(135deg,rgba(0,212,170,.12),rgba(0,168,255,.12));
+    border:1px solid rgba(0,212,170,.25); color:var(--accent); font-size:14px;
+  }
+
+  .msg-body { flex:1; min-width:0; }
+  .msg-head { display:flex; align-items:baseline; gap:8px; margin-bottom:5px; }
+  .msg-name { font-size:13px; font-weight:600; }
+  .msg-time { font-size:11px; color:var(--muted); font-family:'Fira Code',monospace; }
+
+  .msg-content { font-size:14px; line-height:1.8; color:#b8ccd8; word-break:break-word; }
+  .msg-content p { margin-bottom:9px; }
+  .msg-content p:last-child { margin-bottom:0; }
+  .msg-content pre {
+    background:#060810; border:1px solid var(--border2); border-radius:8px;
+    padding:13px 15px; overflow-x:auto; margin:10px 0;
+    font-family:'Fira Code',monospace; font-size:12px; line-height:1.6; color:#90b8c8;
+  }
+  .msg-content code {
+    background:rgba(0,212,170,.08); color:#00d4aa; padding:2px 5px;
+    border-radius:4px; font-family:'Fira Code',monospace; font-size:12.5px;
+  }
+  .msg-content pre code { background:none; color:inherit; padding:0; }
+  .msg-content ul,.msg-content ol { padding-left:20px; margin-bottom:9px; }
+  .msg-content li { margin-bottom:4px; }
+  .msg-content strong { color:var(--text); font-weight:600; }
+  .msg-content em { color:#90a8b8; }
+  .msg-content blockquote {
+    border-left:3px solid var(--accent); padding:8px 14px; margin:10px 0;
+    background:rgba(0,212,170,.04); border-radius:0 6px 6px 0;
+    color:var(--muted2); font-style:italic;
+  }
+  .msg-content h1 { font-size:18px; color:var(--text); margin:14px 0 6px; font-weight:600; }
+  .msg-content h2 { font-size:16px; color:var(--text); margin:12px 0 5px; font-weight:600; }
+  .msg-content h3 { font-size:14px; color:var(--text); margin:10px 0 4px; font-weight:600; }
+
+  .msg-actions { display:flex; gap:5px; margin-top:7px; opacity:0; transition:opacity .15s; }
+  .message:hover .msg-actions { opacity:1; }
+  .act-btn {
+    font-size:11px; padding:3px 8px; background:var(--surface2);
+    border:1px solid var(--border); border-radius:5px; color:var(--muted);
+    cursor:pointer; font-family:'Fira Code',monospace; transition:all .12s;
+  }
+  .act-btn:hover { color:var(--text); border-color:var(--border2); }
+
+  .typing { display:flex; gap:5px; padding:4px 0; align-items:center; }
+  .typing span {
+    width:7px; height:7px; border-radius:50%; background:var(--accent);
+    opacity:.4; animation:tp 1s ease infinite;
+  }
+  .typing span:nth-child(2) { animation-delay:.18s; }
+  .typing span:nth-child(3) { animation-delay:.36s; }
+  @keyframes tp { 0%,80%,100%{transform:scale(.8);opacity:.3} 40%{transform:scale(1.2);opacity:1} }
+
+  .cur {
+    display:inline-block; width:2px; height:13px; background:var(--accent);
+    margin-left:1px; vertical-align:text-bottom;
+    animation:blink .85s ease infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* ── INPUT ── */
+  .input-area {
+    flex-shrink:0; padding:10px 22px 18px;
+    background:var(--bg); border-top:1px solid var(--border);
+  }
+  .input-inner { max-width:740px; margin:0 auto; }
+
+  .input-box {
+    background:var(--surface); border:1px solid var(--border2);
+    border-radius:12px; display:flex; align-items:flex-end; gap:8px;
+    padding:9px 10px; transition:border-color .2s, box-shadow .2s;
+  }
+  .input-box:focus-within {
+    border-color:rgba(0,212,170,.4);
+    box-shadow:0 0 0 3px rgba(0,212,170,.06);
+  }
+
+  #userInput {
+    flex:1; background:transparent; border:none; outline:none;
+    color:var(--text); font-family:'Outfit',sans-serif; font-size:14px;
+    resize:none; min-height:24px; max-height:160px;
+    line-height:1.6; padding:2px 0; scrollbar-width:thin;
+  }
+  #userInput::placeholder { color:var(--muted); }
+
+  .send-btn {
+    width:34px; height:34px; border-radius:8px; flex-shrink:0;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    border:none; color:#080b0f; font-size:15px;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:all .15s; box-shadow:0 2px 10px rgba(0,212,170,.25);
+  }
+  .send-btn:hover { transform:scale(1.05); box-shadow:0 4px 14px rgba(0,212,170,.35); }
+  .send-btn:disabled { background:var(--border2); box-shadow:none; color:var(--muted); cursor:not-allowed; transform:none; }
+
+  .input-foot { display:flex; justify-content:space-between; padding:6px 3px 0; }
+  .input-hint { font-size:11px; color:var(--muted); font-family:'Fira Code',monospace; }
+
+  /* ── MODAL ── */
+  .overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.78); backdrop-filter:blur(5px);
+    z-index:100; display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .2s;
+  }
+  .overlay.open { opacity:1; pointer-events:all; }
+
+  .modal {
+    background:var(--surface); border:1px solid var(--border2);
+    border-radius:16px; width:500px; max-width:95vw; max-height:90vh;
+    overflow-y:auto; transform:scale(.96) translateY(8px);
+    transition:transform .2s; box-shadow:0 24px 60px rgba(0,0,0,.7);
+  }
+  .overlay.open .modal { transform:scale(1) translateY(0); }
+  .modal::-webkit-scrollbar { width:4px; }
+  .modal::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
+
+  .mhead {
+    padding:18px 20px 14px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .mtitle { font-size:15px; font-weight:600; display:flex; align-items:center; gap:8px; }
+  .mclose {
+    width:26px; height:26px; background:var(--surface2); border:1px solid var(--border);
+    border-radius:6px; color:var(--muted2); cursor:pointer; font-size:14px;
+    display:flex; align-items:center; justify-content:center; transition:all .15s;
+  }
+  .mclose:hover { color:var(--text); }
+
+  .mbody { padding:18px 20px; }
+
+  .free-info {
+    background:rgba(0,212,170,.05); border:1px solid rgba(0,212,170,.18);
+    border-radius:8px; padding:12px 14px; margin-bottom:18px;
+    font-size:12px; color:#70d8b8; line-height:1.65; font-family:'Fira Code',monospace;
+  }
+  .free-info strong { color:var(--accent); }
+  .free-info a { color:var(--accent2); text-decoration:none; }
+  .free-info a:hover { text-decoration:underline; }
+
+  .fg { margin-bottom:16px; }
+  .flabel { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .flabel-t { font-size:12px; font-weight:500; color:var(--text); }
+  .flabel-h { font-size:11px; color:var(--muted); font-family:'Fira Code',monospace; }
+
+  .fi {
+    width:100%; background:var(--surface2); border:1px solid var(--border2);
+    border-radius:8px; color:var(--text); font-family:'Fira Code',monospace;
+    font-size:12.5px; padding:9px 12px; outline:none; transition:border-color .2s;
+  }
+  .fi:focus { border-color:rgba(0,212,170,.5); }
+  .fi::placeholder { color:var(--muted); }
+
+  .fs {
+    width:100%; background:var(--surface2); border:1px solid var(--border2);
+    border-radius:8px; color:var(--text); font-family:'Fira Code',monospace;
+    font-size:12.5px; padding:9px 12px; outline:none; cursor:pointer; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%233d5060' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 12px center; padding-right:30px;
+  }
+  .fs option { background:var(--surface2); }
+
+  .fta {
+    width:100%; background:var(--surface2); border:1px solid var(--border2);
+    border-radius:8px; color:var(--text); font-family:'Fira Code',monospace;
+    font-size:12px; padding:9px 12px; outline:none; resize:vertical;
+    min-height:85px; line-height:1.6; transition:border-color .2s;
+  }
+  .fta:focus { border-color:rgba(0,212,170,.5); }
+
+  .frw { display:flex; align-items:center; gap:12px; }
+  input[type="range"] { flex:1; -webkit-appearance:none; height:3px; border-radius:4px; background:var(--border2); outline:none; }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:15px; height:15px; border-radius:50%;
+    background:var(--accent); cursor:pointer; border:2px solid var(--surface);
+    box-shadow:0 0 6px rgba(0,212,170,.5);
+  }
+  .frv { font-family:'Fira Code',monospace; font-size:12px; color:var(--accent); min-width:28px; text-align:right; }
+
+  .fdiv { height:1px; background:var(--border); margin:2px 0 16px; }
+  .fsect { font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); font-family:'Fira Code',monospace; margin-bottom:12px; }
+
+  .kst { display:flex; align-items:center; gap:6px; margin-top:5px; font-size:11px; font-family:'Fira Code',monospace; }
+  .kst .kd { width:6px; height:6px; border-radius:50%; }
+  .kst.ok .kd { background:var(--accent); }
+  .kst.bad .kd { background:var(--red); }
+  .kst.ok { color:var(--accent); }
+  .kst.bad { color:var(--red); }
+
+  .mfoot {
+    padding:12px 20px; border-top:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+
+  .btn-p {
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    color:#080b0f; border:none; border-radius:8px;
+    padding:8px 18px; font-family:'Fira Code',monospace; font-size:12px;
+    font-weight:500; cursor:pointer; transition:all .15s;
+    box-shadow:0 2px 10px rgba(0,212,170,.2);
+  }
+  .btn-p:hover { box-shadow:0 4px 14px rgba(0,212,170,.3); transform:translateY(-1px); }
+
+  .btn-g {
+    background:transparent; color:var(--muted2); border:1px solid var(--border2);
+    border-radius:8px; padding:8px 14px; font-family:'Fira Code',monospace;
+    font-size:12px; cursor:pointer; transition:all .15s;
+  }
+  .btn-g:hover { color:var(--text); background:var(--surface2); }
+
+  .btn-d {
+    background:transparent; color:var(--red); border:1px solid rgba(255,79,106,.25);
+    border-radius:8px; padding:8px 14px; font-family:'Fira Code',monospace;
+    font-size:12px; cursor:pointer; transition:all .15s;
+  }
+  .btn-d:hover { background:rgba(255,79,106,.07); }
+
+  .no-key {
+    background:rgba(255,79,106,.06); border:1px solid rgba(255,79,106,.2);
+    border-radius:10px; padding:14px 16px; margin-bottom:20px;
+    display:flex; align-items:center; gap:12px; font-size:13px; color:#f09090;
+  }
+  .no-key button {
+    margin-left:auto; background:var(--red); color:white; border:none;
+    border-radius:6px; padding:5px 11px; font-size:11px;
+    font-family:'Fira Code',monospace; cursor:pointer; white-space:nowrap;
+  }
+
+  .toast {
+    position:fixed; bottom:22px; right:22px;
+    background:var(--surface2); border:1px solid var(--border2);
+    border-radius:10px; padding:11px 16px; font-size:13px; color:var(--text);
+    display:flex; align-items:center; gap:8px; z-index:200;
+    transform:translateY(16px); opacity:0; transition:all .22s;
+    pointer-events:none; box-shadow:0 8px 28px rgba(0,0,0,.5); max-width:300px;
+  }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast.ok { border-left:3px solid var(--accent); }
+  .toast.err { border-left:3px solid var(--red); }
+
+  /* ── QUOTA BAR ── */
+  .quota-wrap {
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface2); border:1px solid var(--border2);
+    border-radius:20px; padding:4px 10px 4px 8px;
+    font-family:'Fira Code',monospace; font-size:10px; color:var(--muted2);
+    cursor:default; user-select:none; min-width:130px;
+    transition:border-color .2s;
+  }
+  .quota-wrap:hover { border-color:var(--border2); color:var(--text); }
+  .quota-track {
+    flex:1; height:4px; background:var(--border); border-radius:4px; overflow:hidden; min-width:60px;
+  }
+  .quota-fill {
+    height:100%; border-radius:4px;
+    background:var(--accent);
+    transition:width .4s ease, background .4s ease;
+  }
+  .quota-fill.warn  { background:var(--yellow); }
+  .quota-fill.danger { background:var(--red); box-shadow:0 0 6px rgba(255,79,106,.5); }
+  .quota-label { white-space:nowrap; font-size:10px; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo-wrap">
+      <div class="logo-icon">G</div>
+      <div>
+        <div class="logo-name">Mon Groq</div>
+        <div class="logo-sub">groq · gratuit · rapide</div>
+      </div>
+    </div>
+
+    <button class="new-btn" id="newChatBtn">＋ Nouvelle conversation</button>
+    <div class="speed-badge">⚡ Inférence ultra-rapide</div>
+
+    <div class="hist-label">Historique</div>
+    <div class="hist-list" id="histList"></div>
+
+    <div class="sidebar-foot">
+      <button class="sfoot-btn" id="settingsBtn">⚙ Paramètres &amp; Clé API</button>
+      <button class="sfoot-btn" id="exportBtn">⬇ Exporter la conversation</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="iBtn" id="sidebarToggle" title="Afficher/masquer le menu">☰</button>
+        <div class="model-pill">
+          <div class="sdot" id="sdot"></div>
+          <span id="modelLabel">gpt-oss-120b</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="quota-wrap" id="quotaWrap" title="Tokens utilisés aujourd'hui">
+          <div class="quota-track"><div class="quota-fill" id="quotaFill" style="width:0%"></div></div>
+          <span class="quota-label" id="quotaLabel">0 tok</span>
+        </div>
+        <div class="top-btns">
+          <button class="iBtn" id="clearBtn">🗑</button>
+          <button class="iBtn" id="topSettingsBtn">⚙</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="msgs-wrap" id="msgsWrap">
+      <div class="msgs-inner" id="msgsInner"></div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-inner">
+        <div class="input-box">
+          <textarea id="userInput" placeholder="Écrivez votre message…" rows="1"></textarea>
+          <button class="send-btn" id="sendBtn">➤</button>
+        </div>
+        <div class="input-foot">
+          <span class="input-hint">⏎ Envoyer &nbsp;·&nbsp; ⇧⏎ Nouvelle ligne</span>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="modal">
+  <div class="modal">
+    <div class="mhead">
+      <div class="mtitle">⚙ Paramètres</div>
+      <button class="mclose" id="closeModalBtn">✕</button>
+    </div>
+    <div class="mbody">
+
+      <div class="free-info">
+        <strong>✓ API 100% gratuite</strong><br>
+        Obtenez votre clé sur <a href="https://console.groq.com/keys" target="_blank">console.groq.com/keys</a> — aucune carte bancaire. Disponible partout, y compris en Europe.
+      </div>
+
+      <div class="fsect">🔑 Authentification</div>
+      <div class="fg">
+        <div class="flabel">
+          <span class="flabel-t">Clé API Groq</span>
+          <span class="flabel-h">stockée uniquement en local</span>
+        </div>
+        <input type="password" class="fi" id="apiKey" placeholder="gsk_..." autocomplete="off">
+        <div class="kst bad" id="keyStatus">
+          <div class="kd"></div>
+          <span id="keyTxt">Aucune clé configurée</span>
+        </div>
+      </div>
+
+      <div class="fdiv"></div>
+      <div class="fsect">🤖 Modèle</div>
+
+      <div class="fg">
+        <div class="flabel"><span class="flabel-t">Modèle</span></div>
+        <select class="fs" id="modelSel">
+          <optgroup label="── Ultra-puissants (Recommandés) ──">
+            <option value="openai/gpt-oss-120b">GPT-OSS 120B — OpenAI open-source, dépasse o4-mini ⭐</option>
+            <option value="moonshotai/kimi-k2-instruct">Kimi K2 — ~1T MoE, meilleur pour le code 🏆</option>
+            <option value="openai/gpt-oss-20b">GPT-OSS 20B — MoE rapide, 1000+ tokens/sec</option>
+            <option value="meta-llama/llama-4-maverick-17b-128e-instruct">Llama 4 Maverick — 17Bx128 MoE, multimodal</option>
+            <option value="meta-llama/llama-4-scout-17b-16e-instruct">Llama 4 Scout — Contexte 10M tokens 🔥</option>
+          </optgroup>
+          <optgroup label="── Raisonnement ──">
+            <option value="qwen/qwen3-32b">Qwen3 32B — Raisonnement, très polyvalent</option>
+            <option value="deepseek-r1-distill-llama-70b">DeepSeek R1 70B — Chaîne de pensée visible</option>
+          </optgroup>
+          <optgroup label="── Rapides & Efficaces ──">
+            <option value="llama-3.3-70b-versatile">Llama 3.3 70B — Valeur sûre, rapide</option>
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B — Ultra-rapide, usage léger</option>
+            <option value="gemma2-9b-it">Gemma 2 9B — Modèle Google</option>
+            <option value="mixtral-8x7b-32768">Mixtral 8x7B — Contexte 32k</option>
+          </optgroup>
+          <optgroup label="── Vision & Images ──">
+            <option value="llama-3.2-11b-vision-preview">Llama 3.2 11B Vision — Analyse d'images</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="fg">
+        <div class="flabel">
+          <span class="flabel-t">Température</span>
+          <span class="flabel-h">0 = précis · 2 = créatif</span>
+        </div>
+        <div class="frw">
+          <input type="range" id="tempR" min="0" max="2" step="0.1" value="0.7">
+          <span class="frv" id="tempV">0.7</span>
+        </div>
+      </div>
+
+      <div class="fg">
+        <div class="flabel"><span class="flabel-t">Tokens max</span></div>
+        <select class="fs" id="maxTok">
+          <option value="512">512 — Court</option>
+          <option value="1024">1 024 — Standard</option>
+          <option value="2048" selected>2 048 — Normal</option>
+          <option value="4096">4 096 — Long</option>
+          <option value="8192">8 192 — Très long</option>
+        </select>
+      </div>
+
+      <div class="fdiv"></div>
+      <div class="fsect">🎭 Personnalité</div>
+
+      <div class="fg">
+        <div class="flabel"><span class="flabel-t">System Prompt</span></div>
+        <textarea class="fta" id="sysPrompt">Tu es un assistant utile et précis. Réponds en français sauf si on te parle dans une autre langue.</textarea>
+      </div>
+
+      <div class="fg">
+        <div class="flabel"><span class="flabel-t">Votre prénom (optionnel)</span></div>
+        <input type="text" class="fi" id="uname" placeholder="ex: Alex">
+      </div>
+
+      <div class="fdiv"></div>
+      <div class="fsect">📊 Quota journalier</div>
+
+      <div class="fg">
+        <div class="flabel">
+          <span class="flabel-t">Limite de tokens / jour</span>
+          <span class="flabel-h">0 = illimité</span>
+        </div>
+        <input type="number" class="fi" id="quotaLimit" placeholder="ex: 50000" min="0" step="1000">
+      </div>
+
+      <div class="fg">
+        <div class="flabel">
+          <span class="flabel-t">Seuil d'alerte</span>
+          <span class="flabel-h">% du quota avant avertissement</span>
+        </div>
+        <div class="frw">
+          <input type="range" id="quotaWarnR" min="50" max="95" step="5" value="80">
+          <span class="frv" id="quotaWarnV">80%</span>
+        </div>
+      </div>
+
+      <div class="fg">
+        <div class="flabel"><span class="flabel-t">Bloquer à la limite</span></div>
+        <select class="fs" id="quotaBlock">
+          <option value="no" selected>Non — Avertir seulement</option>
+          <option value="yes">Oui — Bloquer l'envoi</option>
+        </select>
+      </div>
+
+      <div class="fg" id="quotaStatsBox" style="background:rgba(0,212,170,.04);border:1px solid rgba(0,212,170,.12);border-radius:8px;padding:10px 12px;">
+        <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-family:'Fira Code',monospace;margin-bottom:8px;">Utilisation aujourd'hui</div>
+        <div style="display:flex;gap:20px;font-family:'Fira Code',monospace;font-size:12px;">
+          <div><span style="color:var(--muted2)">Tokens :</span> <span id="statTokens" style="color:var(--accent)">0</span></div>
+          <div><span style="color:var(--muted2)">Requêtes :</span> <span id="statReqs" style="color:var(--accent)">0</span></div>
+          <div><span style="color:var(--muted2)">Reset :</span> <span id="statReset" style="color:var(--muted2)">minuit</span></div>
+        </div>
+      </div>
+
+      <div class="fdiv"></div>
+      <div class="fsect">💾 Stockage</div>
+
+      <div class="fg">
+        <div class="flabel"><span class="flabel-t">Sauvegarder l'historique</span></div>
+        <select class="fs" id="saveHist">
+          <option value="yes" selected>Oui — Conservé entre les sessions</option>
+          <option value="no">Non — Effacé à la fermeture</option>
+        </select>
+      </div>
+
+    </div>
+    <div class="mfoot">
+      <button class="btn-d" id="wipeBtn">🗑 Tout effacer</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn-g" id="cancelSettingsBtn">Annuler</button>
+        <button class="btn-p" id="saveSettingsBtn">✓ Sauvegarder</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──
+let sessions = {}, sid = null, streaming = false;
+let sidebarOpen = true;
+
+const DEFAULT_CFG = {
+  apiKey: '', model: 'openai/gpt-oss-120b',
+  temp: 0.7, maxTok: 2048,
+  sysPrompt: 'Tu es un assistant utile et précis. Réponds en français sauf si on te parle dans une autre langue.',
+  uname: '', saveHist: 'yes',
+  quotaLimit: 0, quotaWarn: 80, quotaBlock: 'no'
+};
+let cfg = { ...DEFAULT_CFG };
+
+// ── DOM REFS ──
+const app         = document.getElementById('app');
+const histList    = document.getElementById('histList');
+const msgsInner   = document.getElementById('msgsInner');
+const msgsWrap    = document.getElementById('msgsWrap');
+const userInput   = document.getElementById('userInput');
+const sendBtn     = document.getElementById('sendBtn');
+const sdot        = document.getElementById('sdot');
+const modelLabel  = document.getElementById('modelLabel');
+const modal       = document.getElementById('modal');
+const toastEl     = document.getElementById('toast');
+const sidebarToggle = document.getElementById('sidebarToggle');
+
+// ── INIT ──
+window.onload = () => {
+  loadStorage();
+  resetQuotaIfNewDay();
+  renderHist();
+  syncDot();
+  renderQuota();
+
+  if (!Object.keys(sessions).length) {
+    newChat();
+  } else {
+    const last = Object.keys(sessions).sort((a, b) => sessions[b].ts - sessions[a].ts)[0];
+    loadSess(last);
+  }
+  if (!cfg.apiKey) setTimeout(openSettings, 400);
+
+  // Event listeners (no inline handlers)
+  document.getElementById('newChatBtn').addEventListener('click', newChat);
+  document.getElementById('settingsBtn').addEventListener('click', openSettings);
+  document.getElementById('exportBtn').addEventListener('click', exportChat);
+  document.getElementById('clearBtn').addEventListener('click', clearMsgs);
+  document.getElementById('topSettingsBtn').addEventListener('click', openSettings);
+  sendBtn.addEventListener('click', sendMsg);
+  sidebarToggle.addEventListener('click', toggleSidebar);
+  document.getElementById('closeModalBtn').addEventListener('click', closeSettings);
+  document.getElementById('cancelSettingsBtn').addEventListener('click', closeSettings);
+  document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+  document.getElementById('wipeBtn').addEventListener('click', wipeAll);
+  document.getElementById('apiKey').addEventListener('input', checkKey);
+  document.getElementById('tempR').addEventListener('input', e => {
+    document.getElementById('tempV').textContent = e.target.value;
+  });
+  userInput.addEventListener('keydown', handleKey);
+  userInput.addEventListener('input', () => resizeTA(userInput));
+  document.getElementById('quotaWarnR').addEventListener('input', e => {
+    document.getElementById('quotaWarnV').textContent = e.target.value + '%';
+  });
+  modal.addEventListener('click', e => { if (e.target === modal) closeSettings(); });
+};
+
+// ── SIDEBAR ──
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  app.classList.toggle('sidebar-hidden', !sidebarOpen);
+  sidebarToggle.classList.toggle('active', !sidebarOpen);
+}
+
+function hideSidebar() {
+  if (sidebarOpen) {
+    sidebarOpen = false;
+    app.classList.add('sidebar-hidden');
+    sidebarToggle.classList.add('active');
+  }
+}
+
+// ── STORAGE ──
+function loadStorage() {
+  try {
+    const c = localStorage.getItem('groq_cfg');
+    if (c) cfg = { ...DEFAULT_CFG, ...JSON.parse(c) };
+    const s = localStorage.getItem('groq_sess');
+    if (s) sessions = JSON.parse(s);
+  } catch(e) {}
+}
+
+function save() {
+  localStorage.setItem('groq_cfg', JSON.stringify(cfg));
+  if (cfg.saveHist === 'yes') localStorage.setItem('groq_sess', JSON.stringify(sessions));
+}
+
+// ── QUOTA STORAGE ──
+function loadQuota() {
+  try {
+    const q = localStorage.getItem('groq_quota');
+    return q ? JSON.parse(q) : { date: today(), tokens: 0, reqs: 0 };
+  } catch(e) { return { date: today(), tokens: 0, reqs: 0 }; }
+}
+
+function saveQuota(q) {
+  localStorage.setItem('groq_quota', JSON.stringify(q));
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function resetQuotaIfNewDay() {
+  const q = loadQuota();
+  if (q.date !== today()) saveQuota({ date: today(), tokens: 0, reqs: 0 });
+}
+
+function addUsage(tokens) {
+  const q = loadQuota();
+  q.tokens += tokens;
+  q.reqs += 1;
+  saveQuota(q);
+  renderQuota();
+  checkQuotaWarning(q);
+}
+
+function renderQuota() {
+  const q = loadQuota();
+  const fill  = document.getElementById('quotaFill');
+  const label = document.getElementById('quotaLabel');
+  const limit = parseInt(cfg.quotaLimit) || 0;
+
+  if (limit === 0) {
+    fill.style.width = '0%';
+    fill.className = 'quota-fill';
+    label.textContent = fmtTok(q.tokens) + ' tok';
+    document.getElementById('quotaWrap').title = `${q.tokens.toLocaleString('fr-FR')} tokens utilisés aujourd'hui (pas de limite)`;
+    return;
+  }
+
+  const pct = Math.min((q.tokens / limit) * 100, 100);
+  const warn = parseInt(cfg.quotaWarn) || 80;
+  fill.style.width = pct.toFixed(1) + '%';
+  fill.className = 'quota-fill' + (pct >= 100 ? ' danger' : pct >= warn ? ' warn' : '');
+  label.textContent = fmtTok(q.tokens) + ' / ' + fmtTok(limit);
+  document.getElementById('quotaWrap').title =
+    `${q.tokens.toLocaleString('fr-FR')} / ${limit.toLocaleString('fr-FR')} tokens (${pct.toFixed(0)}%) — ${q.reqs} requête(s) aujourd'hui`;
+}
+
+function checkQuotaWarning(q) {
+  const limit = parseInt(cfg.quotaLimit) || 0;
+  if (limit === 0) return;
+  const pct = (q.tokens / limit) * 100;
+  const warn = parseInt(cfg.quotaWarn) || 80;
+  if (pct >= 100) {
+    toast(`⛔ Quota journalier atteint (${fmtTok(limit)} tokens)`, 'err');
+  } else if (pct >= warn && pct - (1 / limit * 100) < warn) {
+    toast(`⚠ ${pct.toFixed(0)}% du quota utilisé`, 'err');
+  }
+}
+
+function isQuotaBlocked() {
+  if (cfg.quotaBlock !== 'yes') return false;
+  const limit = parseInt(cfg.quotaLimit) || 0;
+  if (limit === 0) return false;
+  return loadQuota().tokens >= limit;
+}
+
+function fmtTok(n) {
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+}
+
+
+function newChat() {
+  const id = 'c' + Date.now();
+  sessions[id] = { title: 'Nouvelle conversation', msgs: [], ts: Date.now() };
+  sid = id;
+  renderHist();
+  renderMsgs();
+  save();
+}
+
+function loadSess(id) { sid = id; renderHist(); renderMsgs(); }
+
+function delSess(id, e) {
+  e.stopPropagation();
+  delete sessions[id];
+  if (sid === id) {
+    const ids = Object.keys(sessions);
+    ids.length ? loadSess(ids[0]) : newChat();
+  } else {
+    renderHist();
+  }
+  save();
+}
+
+function cur() { return sessions[sid]; }
+
+function autoTitle(txt) {
+  const s = cur();
+  if (s && s.title === 'Nouvelle conversation')
+    s.title = txt.slice(0, 38) + (txt.length > 38 ? '…' : '');
+  renderHist();
+}
+
+// ── RENDER ──
+function renderHist() {
+  const sorted = Object.entries(sessions).sort((a, b) => b[1].ts - a[1].ts);
+  histList.innerHTML = sorted.map(([id, s]) => `
+    <div class="hist-item ${id === sid ? 'active' : ''}" onclick="loadSess('${id}')">
+      <span style="flex-shrink:0;font-size:11px;opacity:.5">💬</span>
+      <span class="lbl">${esc(s.title)}</span>
+      <span class="del" onclick="delSess('${id}',event)">✕</span>
+    </div>`).join('');
+}
+
+function renderMsgs() {
+  const s = cur();
+  if (!s || !s.msgs.length) {
+    msgsInner.innerHTML = cfg.apiKey
+      ? `<div class="empty"><div class="empty-icon">⚡</div><div class="empty-title">Prêt à discuter</div><div class="empty-sub">Modèle : <strong>${cfg.model}</strong><br>Écrivez votre premier message.</div></div>`
+      : `<div class="no-key">🔑 Clé API manquante<button onclick="openSettings()">Configurer</button></div>`;
+    return;
+  }
+  msgsInner.innerHTML = s.msgs.map((m, i) => msgHTML(m, i)).join('');
+  scrollBot();
+}
+
+function msgHTML(m, i) {
+  const isU = m.role === 'user';
+  const name = isU ? (cfg.uname || 'Vous') : 'Groq';
+  const av = isU ? (cfg.uname ? cfg.uname[0].toUpperCase() : 'V') : '⚡';
+  const t = m.ts ? new Date(m.ts).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+  return `<div class="message" id="m${i}">
+    <div class="av ${isU ? 'user' : 'ai'}">${av}</div>
+    <div class="msg-body">
+      <div class="msg-head"><span class="msg-name">${esc(name)}</span><span class="msg-time">${t}</span></div>
+      <div class="msg-content" id="mc${i}">${fmt(m.content)}</div>
+      <div class="msg-actions"><button class="act-btn" onclick="copyMsg(${i})">⎘ Copier</button></div>
+    </div></div>`;
+}
+
+// Markdown formatter — corrigé : une seule passe <ul> par bloc de <li>
+function fmt(txt) {
+  let h = esc(txt);
+  // Blocs de code (préservés en premier)
+  h = h.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, l, c) => `<pre><code>${c.trim()}</code></pre>`);
+  h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  // Formatage inline
+  h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+  h = h.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  // Titres
+  h = h.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  h = h.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  h = h.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  // Blockquotes
+  h = h.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+  // Listes : regrouper les lignes consécutives en un seul <ul>
+  h = h.replace(/((?:^[ \t]*[-*] .+\n?)+)/gm, block => {
+    const items = block.trim().split('\n').map(line =>
+      `<li>${line.replace(/^[ \t]*[-*] /, '').trim()}</li>`
+    ).join('');
+    return `<ul>${items}</ul>`;
+  });
+  // Paragraphes
+  const parts = h.split(/\n{2,}/);
+  h = parts.map(p => {
+    p = p.trim();
+    if (!p) return '';
+    if (/^<(h[123]|ul|pre|blockquote)/.test(p)) return p;
+    return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+  }).join('');
+  return h;
+}
+
+function scrollBot() { msgsWrap.scrollTop = msgsWrap.scrollHeight; }
+
+// ── SEND ──
+async function sendMsg() {
+  const txt = userInput.value.trim();
+  if (!txt || streaming) return;
+  if (!cfg.apiKey) { toast('🔑 Configurez votre clé API', 'err'); openSettings(); return; }
+  if (isQuotaBlocked()) { toast('⛔ Quota journalier atteint — réinitialisé à minuit', 'err'); return; }
+
+  const s = cur();
+  s.msgs.push({ role: 'user', content: txt, ts: Date.now() });
+  userInput.value = '';
+  resizeTA(userInput);
+  autoTitle(txt);
+  renderMsgs();
+
+  // Masquer la sidebar dès l'envoi
+  hideSidebar();
+
+  streaming = true;
+  sendBtn.disabled = true;
+
+  const aiIdx = s.msgs.length;
+  s.msgs.push({ role: 'assistant', content: '', ts: Date.now() });
+  renderMsgs();
+  const target = document.getElementById(`mc${aiIdx}`);
+  if (target) target.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
+
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.apiKey}` },
+      body: JSON.stringify({
+        model: cfg.model,
+        messages: buildMsgs(s),
+        max_tokens: parseInt(cfg.maxTok),
+        temperature: parseFloat(cfg.temp),
+        stream: true
+      })
+    });
+
+    if (!resp.ok) {
+      const e = await resp.json().catch(() => ({}));
+      throw new Error(e.error?.message || `HTTP ${resp.status}`);
+    }
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let full = '';
+    let totalTokens = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      for (const line of dec.decode(value).split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (!raw || raw === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(raw);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) {
+            full += delta;
+            s.msgs[aiIdx].content = full;
+            if (target) target.innerHTML = fmt(full) + '<span class="cur"></span>';
+            scrollBot();
+          }
+          // Récupérer l'usage depuis le dernier chunk
+          if (parsed.usage?.total_tokens) totalTokens = parsed.usage.total_tokens;
+        } catch(e) {}
+      }
+    }
+
+    // Enregistrer l'usage — fallback : estimation grossière si non fourni
+    if (totalTokens === 0) totalTokens = Math.ceil((txt.length + full.length) / 4);
+    addUsage(totalTokens);
+
+    s.msgs[aiIdx].content = full;
+    if (target) target.innerHTML = fmt(full);
+
+  } catch(err) {
+    const msg = err.message || 'Erreur inconnue';
+    s.msgs[aiIdx].content = '⚠ ' + msg;
+    if (target) target.innerHTML = `<span style="color:var(--red)">⚠ ${esc(msg)}</span>`;
+    toast('Erreur : ' + msg, 'err');
+  }
+
+  streaming = false;
+  sendBtn.disabled = false;
+  renderHist();
+  save();
+}
+
+function buildMsgs(s) {
+  const out = cfg.sysPrompt ? [{ role: 'system', content: cfg.sysPrompt }] : [];
+  s.msgs
+    .filter((m, i) => !(m.role === 'assistant' && m.content === '' && i === s.msgs.length - 1))
+    .forEach(m => out.push({ role: m.role, content: m.content }));
+  return out;
+}
+
+// ── UI HELPERS ──
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } }
+function resizeTA(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 160) + 'px'; }
+function clearMsgs() { const s = cur(); if (s) { s.msgs = []; renderMsgs(); save(); toast('Conversation effacée', 'ok'); } }
+function copyMsg(i) { const s = cur(); if (s?.msgs[i]) { navigator.clipboard.writeText(s.msgs[i].content); toast('✓ Copié', 'ok'); } }
+
+function exportChat() {
+  const s = cur();
+  if (!s?.msgs.length) { toast('Rien à exporter', 'err'); return; }
+  const txt = s.msgs.map(m => `[${m.role === 'user' ? (cfg.uname || 'Vous') : 'Groq'}]\n${m.content}`).join('\n\n---\n\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt], { type: 'text/plain' }));
+  a.download = `groq_${new Date().toISOString().slice(0, 10)}.txt`;
+  a.click();
+  toast('✓ Exporté', 'ok');
+}
+
+function syncDot() {
+  sdot.className = 'sdot' + (cfg.apiKey ? '' : ' off');
+  modelLabel.textContent = cfg.model;
+}
+
+function toast(msg, type = 'ok') {
+  toastEl.textContent = msg;
+  toastEl.className = `toast ${type} show`;
+  setTimeout(() => toastEl.classList.remove('show'), 2800);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── SETTINGS ──
+function openSettings() {
+  document.getElementById('apiKey').value = cfg.apiKey || '';
+  document.getElementById('modelSel').value = cfg.model;
+  document.getElementById('tempR').value = cfg.temp;
+  document.getElementById('tempV').textContent = cfg.temp;
+  document.getElementById('maxTok').value = cfg.maxTok;
+  document.getElementById('sysPrompt').value = cfg.sysPrompt;
+  document.getElementById('uname').value = cfg.uname || '';
+  document.getElementById('saveHist').value = cfg.saveHist;
+  document.getElementById('quotaLimit').value = cfg.quotaLimit || 0;
+  document.getElementById('quotaWarnR').value = cfg.quotaWarn || 80;
+  document.getElementById('quotaWarnV').textContent = (cfg.quotaWarn || 80) + '%';
+  document.getElementById('quotaBlock').value = cfg.quotaBlock || 'no';
+  // Stats live
+  const q = loadQuota();
+  document.getElementById('statTokens').textContent = q.tokens.toLocaleString('fr-FR');
+  document.getElementById('statReqs').textContent = q.reqs;
+  const now = new Date(); const reset = new Date(); reset.setHours(24,0,0,0);
+  const diff = Math.round((reset - now) / 60000);
+  document.getElementById('statReset').textContent = `dans ${diff >= 60 ? Math.floor(diff/60)+'h'+String(diff%60).padStart(2,'0') : diff+'min'}`;
+  checkKey();
+  modal.classList.add('open');
+}
+
+function closeSettings() { modal.classList.remove('open'); }
+
+function saveSettings() {
+  cfg.apiKey   = document.getElementById('apiKey').value.trim();
+  cfg.model    = document.getElementById('modelSel').value;
+  cfg.temp     = parseFloat(document.getElementById('tempR').value);
+  cfg.maxTok   = parseInt(document.getElementById('maxTok').value);
+  cfg.sysPrompt = document.getElementById('sysPrompt').value;
+  cfg.uname    = document.getElementById('uname').value.trim();
+  cfg.saveHist = document.getElementById('saveHist').value;
+  cfg.quotaLimit = parseInt(document.getElementById('quotaLimit').value) || 0;
+  cfg.quotaWarn  = parseInt(document.getElementById('quotaWarnR').value) || 80;
+  cfg.quotaBlock = document.getElementById('quotaBlock').value;
+  save(); syncDot(); renderQuota(); closeSettings(); toast('✓ Paramètres sauvegardés', 'ok'); renderMsgs();
+}
+
+function checkKey() {
+  const v = document.getElementById('apiKey').value.trim();
+  const el = document.getElementById('keyStatus');
+  const tx = document.getElementById('keyTxt');
+  if (v.startsWith('gsk_') && v.length > 20) {
+    el.className = 'kst ok'; tx.textContent = 'Clé détectée (' + v.slice(0, 8) + '…)';
+  } else if (v.length > 0) {
+    el.className = 'kst bad'; tx.textContent = 'Format invalide (doit commencer par gsk_…)';
+  } else {
+    el.className = 'kst bad'; tx.textContent = 'Aucune clé configurée';
+  }
+}
+
+function wipeAll() {
+  if (!confirm('Effacer toutes les données ?')) return;
+  localStorage.removeItem('groq_cfg');
+  localStorage.removeItem('groq_sess');
+  sessions = {};
+  cfg = { ...DEFAULT_CFG };
+  closeSettings(); newChat(); toast('✓ Données effacées', 'ok');
+}
+</script>
+</body>
+</html>
