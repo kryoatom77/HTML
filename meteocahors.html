@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0c1624">
+<title>Météo</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAu0lEQVR4nO1WQQ7AIAjDZa/Z/9/id9jJxEzEgrrMxV6l0DLQEW1sOMGRmCNxb55jhJhpAkY4dAtIxXtEINyAJgiXHuvlNpNyJJYSSO5SnEW4yVWtsCSkJrxLgGUe0E8Gr6F1GNH4b98DCd5VRHhni2RdPysKATOgmSoEzHb8xCsd0ExBQ+jtCsJbZw2tXRh2E+bPMppUepSqsUjxPKl0JsX0POVVER7uqH/HZhHtXONP34JW+9dYw41f4wbVjmQgxtNmPwAAAABJRU5ErkJggg==">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#070d1a; --panel:#0c1624; --border:#1a3a5c; --blit:#1e5f9a;
+  --accent:#00e5ff; --text:#cdd9e8; --dim:#4d6a85; --hi:#e8f4ff;
+  --mf:#00b4d8; --agri:#52b788; --plein:#f77f00;
+  --rain:#29b6f6;
+}
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+
+/* ── desktop : plein écran ── */
+html, body {
+  width:100%; height:100%; overflow:hidden;
+  background:var(--bg);
+  font-family:'Barlow Condensed',sans-serif;
+  color:var(--text);
+  -webkit-tap-highlight-color:transparent;
+}
+
+.layout {
+  display:grid;
+  grid-template-rows:50vh calc(50vh - 2px);
+  width:100vw; height:100vh;
+  gap:2px; background:#020508;
+}
+.mg-block { display:flex; flex-direction:column; overflow:hidden; min-height:0 }
+.meteograms {
+  display:grid; grid-template-columns:1fr 1fr 1fr;
+  gap:2px; flex:1; min-height:0;
+}
+
+/* ── barre ── */
+.view-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 12px; height:32px; flex-shrink:0;
+  background:rgba(0,0,0,.5); border-bottom:1px solid var(--border);
+}
+.view-title {
+  font-family:'Share Tech Mono',monospace; font-size:.82rem;
+  color:var(--dim); letter-spacing:.06em;
+  cursor:pointer; display:flex; align-items:center; gap:6px;
+  padding:4px 8px; border-radius:4px; transition:background .15s; user-select:none;
+}
+.view-title:hover { background:rgba(0,229,255,.07); color:var(--accent) }
+.view-city { color:var(--accent); font-weight:700 }
+.view-btns { display:flex; gap:5px }
+.view-btn {
+  font-family:'Barlow Condensed',sans-serif; font-size:.82rem; font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase;
+  width:100px; text-align:center; padding:3px 0;
+  border:1px solid var(--blit); background:transparent; color:var(--dim);
+  cursor:pointer; border-radius:3px; transition:all .15s; -webkit-appearance:none;
+}
+.view-btn.active { background:rgba(0,229,255,.09); border-color:var(--accent); color:var(--accent) }
+
+/* ── météogramme ── */
+.mg {
+  background:var(--panel); border:1px solid var(--border);
+  display:flex; flex-direction:column; overflow:hidden; position:relative;
+}
+.mg::after { content:''; position:absolute; top:0; left:0; right:0; height:2px; pointer-events:none }
+.mg.mf::after    { background:var(--mf);    box-shadow:0 0 8px var(--mf) }
+.mg.agri::after  { background:var(--agri);  box-shadow:0 0 8px var(--agri) }
+.mg.plein::after { background:var(--plein); box-shadow:0 0 8px var(--plein) }
+.mg-head {
+  display:flex; align-items:center; padding:4px 9px 3px;
+  border-bottom:1px solid rgba(26,58,92,.5); flex-shrink:0;
+}
+.mg-title { font-size:clamp(.75rem,1.2vw,.95rem); font-weight:700; letter-spacing:.07em; text-transform:uppercase }
+.mg.mf    .mg-title { color:var(--mf) }
+.mg.agri  .mg-title { color:var(--agri) }
+.mg.plein .mg-title { color:var(--plein) }
+
+/* ── prochaine heure ── */
+.nh {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:2px 9px; background:rgba(0,0,0,.22);
+  border-bottom:1px solid rgba(26,58,92,.35); flex-shrink:0;
+}
+.nh-label {
+  font-size:clamp(.56rem,.88vw,.7rem); font-weight:700; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--dim); white-space:nowrap;
+}
+.nh-vals { display:flex; gap:.7em; align-items:center }
+.nh-item { display:flex; align-items:center; gap:2px }
+.nh-icon { font-size:.82rem; line-height:1 }
+.nh-val  { font-family:'Share Tech Mono',monospace; font-size:clamp(.82rem,1.3vw,1rem); font-weight:700 }
+.nh-unit { font-size:clamp(.52rem,.75vw,.62rem); font-weight:600; margin-left:1px }
+.nh-val.rain,  .nh-unit.rain  { color:var(--rain) }
+.nh-val.temp,  .nh-unit.temp  { color:#ff9f6e }
+.nh-val.cloud, .nh-unit.cloud { color:rgba(176,196,222,.85) }
+
+/* ── graphique ── */
+.mg-chart { flex:1; position:relative; padding:3px 4px 2px; min-height:0 }
+.mg-chart canvas { width:100%!important; height:100%!important }
+
+/* ── overlay chargement ── */
+.mg-overlay {
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  background:var(--panel); z-index:20; gap:8px; transition:opacity .4s;
+}
+.mg-overlay.gone { opacity:0; pointer-events:none }
+.spinner {
+  width:24px; height:24px; border:2px solid rgba(255,255,255,.07);
+  border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite;
+}
+.mg-overlay p { font-size:.6rem; color:var(--dim); letter-spacing:.08em; text-transform:uppercase }
+@keyframes spin { to { transform:rotate(360deg) } }
+
+/* ── carte ── */
+.map-section {
+  background:#05090f; border:1px solid var(--border);
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.map-bar {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:4px 12px; border-bottom:1px solid var(--border);
+  background:rgba(0,0,0,.3); flex-shrink:0;
+}
+.map-bar-left {
+  display:flex; align-items:center; gap:.6em;
+  font-size:clamp(.65rem,1vw,.78rem); font-weight:700;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--hi);
+}
+.live-dot {
+  width:6px; height:6px; border-radius:50%;
+  background:#76ff03; box-shadow:0 0 5px #76ff03;
+  animation:blink 1.4s ease-in-out infinite; flex-shrink:0;
+}
+@keyframes blink { 0%,100% { opacity:1 } 50% { opacity:.2 } }
+.map-btns { display:flex; gap:5px }
+.map-btn {
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:clamp(.65rem,1vw,.78rem); font-weight:700;
+  letter-spacing:.08em; text-transform:uppercase;
+  padding:3px 12px; border:1px solid var(--blit);
+  background:transparent; color:var(--dim);
+  cursor:pointer; border-radius:3px; transition:all .15s; -webkit-appearance:none;
+}
+.map-btn.active { background:rgba(0,229,255,.09); border-color:var(--accent); color:var(--accent) }
+#windy-frame { flex:1; width:100%; border:none; display:block }
+
+/* ── modal ville ── */
+#city-modal {
+  display:none; position:fixed; inset:0; z-index:100;
+  background:rgba(2,5,8,.85); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#city-modal.open { display:flex }
+.city-box {
+  background:#0c1624; border:1px solid var(--blit); border-radius:8px;
+  padding:20px; width:340px; max-width:90vw; box-shadow:0 8px 32px rgba(0,0,0,.6);
+}
+.city-box h3 {
+  font-size:.85rem; font-weight:700; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--accent); margin-bottom:12px;
+}
+#city-search {
+  width:100%; background:rgba(255,255,255,.05); border:1px solid var(--blit);
+  color:var(--hi); font-family:'Barlow Condensed',sans-serif; font-size:1rem;
+  padding:8px 10px; border-radius:4px; outline:none; letter-spacing:.04em;
+}
+#city-search::placeholder { color:var(--dim) }
+#city-results { margin-top:8px; display:flex; flex-direction:column; gap:3px; max-height:220px; overflow-y:auto }
+.city-result {
+  padding:7px 10px; border-radius:4px; cursor:pointer; font-size:.88rem;
+  color:var(--text); transition:background .12s; border:1px solid transparent;
+}
+.city-result:hover { background:rgba(0,229,255,.08); border-color:rgba(0,229,255,.2); color:var(--hi) }
+.city-result-name { font-weight:700 }
+.city-result-sub  { font-size:.72rem; color:var(--dim); margin-top:1px }
+.city-close {
+  margin-top:10px; width:100%; background:transparent; border:1px solid var(--border);
+  color:var(--dim); font-family:'Barlow Condensed',sans-serif; font-size:.78rem;
+  font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  padding:6px; border-radius:4px; cursor:pointer; transition:all .15s;
+}
+.city-close:hover { border-color:var(--blit); color:var(--text) }
+::-webkit-scrollbar { display:none }
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE — mobile portrait (≤ 767px)
+   ══════════════════════════════════════════════ */
+@media (max-width:767px) {
+  html, body {
+    height:auto; min-height:100%;
+    overflow-x:hidden; overflow-y:auto;
+  }
+  .layout {
+    display:flex; flex-direction:column;
+    width:100%; height:auto; gap:2px;
+  }
+  .mg-block { flex-shrink:0; overflow:visible; height:auto }
+  .meteograms { display:flex; flex-direction:column; gap:2px; flex:none }
+  .mg { height:220px; flex-shrink:0 }
+  .map-section { height:300px; flex-shrink:0 }
+  .view-btn { width:76px; font-size:.74rem; padding:4px 0 }
+  .view-title { font-size:.75rem; padding:3px 6px }
+  .map-btn { padding:3px 8px; font-size:.7rem }
+}
+
+/* mobile paysage : grille 3 colonnes conservée, scroll vertical */
+@media (max-width:767px) and (orientation:landscape) {
+  html, body { height:auto; overflow-y:auto }
+  .layout { display:flex; flex-direction:column; height:auto }
+  .mg-block { height:auto; flex-shrink:0; overflow:visible }
+  .meteograms {
+    display:grid; grid-template-columns:1fr 1fr 1fr;
+    flex:none; height:auto;
+  }
+  .mg { height:190px }
+  .map-section { height:260px }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <div class="mg-block">
+    <div class="view-bar">
+      <div class="view-title" onclick="openCityModal()">
+        <span>📍</span><span class="view-city" id="city-label">Cahors</span>
+      </div>
+      <div class="view-btns">
+        <button class="view-btn active" id="btn-1j" onclick="setView('1j')">Aujourd'hui</button>
+        <button class="view-btn"        id="btn-7j" onclick="setView('7j')">7 jours</button>
+      </div>
+    </div>
+    <div class="meteograms" id="meteograms"></div>
+  </div>
+
+  <div class="map-section">
+    <div class="map-bar">
+      <div class="map-bar-left"><span class="live-dot"></span>Radar — Windy</div>
+      <div class="map-btns">
+        <button class="map-btn active" id="btn-loc" onclick="setMap('loc')">📍 Lieu</button>
+        <button class="map-btn"        id="btn-fr"  onclick="setMap('fr')">⊞ France</button>
+      </div>
+    </div>
+    <iframe id="windy-frame" src="" allowfullscreen></iframe>
+  </div>
+</div>
+
+<div id="city-modal">
+  <div class="city-box">
+    <h3>📍 Choisir une ville</h3>
+    <input type="text" id="city-search" placeholder="Tapez le nom d'une ville…"
+           oninput="searchCity(this.value)" autocomplete="off">
+    <div id="city-results"></div>
+    <button class="city-close" onclick="closeCityModal()">Fermer</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ── config ── */
+const APIS = [
+  { id:'mf',    label:'Météo France',    model:'meteofrance_seamless', color:'#00b4d8' },
+  { id:'agri',  label:'Météo Agricole',  model:'ecmwf_ifs025',         color:'#52b788' },
+  { id:'plein', label:'Pleinchamp',      model:'gfs_seamless',          color:'#f77f00' },
+];
+const JOURS = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+const WB = 'https://embed.windy.com/embed2.html?level=surface&overlay=radar&menu=false&message=false&marker=false&calendar=now&pressure=false&type=map&location=coordinates&detail=false&metricWind=km%2Fh&metricTemp=%C2%B0C';
+
+/* ── état ── */
+let LAT  = parseFloat(localStorage.getItem('meteo_lat')  || '44.4476');
+let LON  = parseFloat(localStorage.getItem('meteo_lon')  || '1.4422');
+let CITY = localStorage.getItem('meteo_city') || 'Cahors';
+let view = '1j';
+
+const store  = {};
+const charts = {};
+const tmap   = {};
+const cmap   = {};
+
+/* ── échelle température synchronisée entre les 3 modèles ── */
+let gTMin = null;
+let gTMax = null;
+
+function computeGlobalTBounds() {
+  let mn = Infinity, mx = -Infinity;
+  APIS.forEach(api => {
+    if (!store[api.id]) return;
+    const { tData } = sliceData(store[api.id]);
+    tData.forEach(v => { if (v != null) { mn = Math.min(mn, v); mx = Math.max(mx, v); } });
+  });
+  if (mn < Infinity) {
+    gTMin = Math.floor(mn) - 1;
+    gTMax = Math.ceil(mx)  + 1;
+  }
+}
+
+/* ── HTML météogrammes ── */
+APIS.forEach(api => {
+  document.getElementById('meteograms').insertAdjacentHTML('beforeend', `
+    <div class="mg ${api.id}">
+      <div class="mg-head"><div class="mg-title">${api.label}</div></div>
+      <div class="nh">
+        <span class="nh-label">Prochaine heure</span>
+        <div class="nh-vals">
+          <div class="nh-item"><span class="nh-icon">🌧</span><span class="nh-val rain"  id="${api.id}-np">—</span><span class="nh-unit rain">mm</span></div>
+          <div class="nh-item"><span class="nh-icon">🌡</span><span class="nh-val temp"  id="${api.id}-nt">—</span><span class="nh-unit temp">°C</span></div>
+          <div class="nh-item"><span class="nh-icon">☁</span><span class="nh-val cloud" id="${api.id}-nc">—</span><span class="nh-unit cloud">%</span></div>
+        </div>
+      </div>
+      <div class="mg-chart"><canvas id="c-${api.id}"></canvas></div>
+      <div class="mg-overlay" id="ov-${api.id}"><div class="spinner"></div><p>Chargement…</p></div>
+    </div>`);
+});
+
+document.getElementById('city-label').textContent = CITY;
+
+/* ── windy ── */
+function setMap(v) {
+  document.getElementById('windy-frame').src = v === 'loc'
+    ? `${WB}&lat=${LAT}&lon=${LON}&zoom=10`
+    : `${WB}&lat=46.5&lon=2.5&zoom=5`;
+  document.getElementById('btn-loc').classList.toggle('active', v === 'loc');
+  document.getElementById('btn-fr').classList.toggle('active',  v === 'fr');
+}
+setMap('loc');
+
+/* ── vue ── */
+function setView(v) {
+  view = v;
+  document.getElementById('btn-1j').classList.toggle('active', v === '1j');
+  document.getElementById('btn-7j').classList.toggle('active', v === '7j');
+  computeGlobalTBounds();   // recalcul sur la nouvelle plage temporelle
+  APIS.forEach(api => { if (store[api.id]) renderChart(api, store[api.id]); });
+}
+
+/* ── modal ville ── */
+function openCityModal() {
+  document.getElementById('city-modal').classList.add('open');
+  document.getElementById('city-search').value = '';
+  document.getElementById('city-results').innerHTML = '';
+  setTimeout(() => document.getElementById('city-search').focus(), 80);
+}
+function closeCityModal() { document.getElementById('city-modal').classList.remove('open'); }
+document.getElementById('city-modal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeCityModal();
+});
+
+let geoTimer;
+function searchCity(q) {
+  clearTimeout(geoTimer);
+  const res = document.getElementById('city-results');
+  if (q.length < 2) { res.innerHTML = ''; return; }
+  geoTimer = setTimeout(async () => {
+    try {
+      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=fr&format=json`);
+      const d = await r.json();
+      res.innerHTML = (d.results?.length)
+        ? d.results.map(c => `<div class="city-result" onclick='selectCity(${JSON.stringify(c)})'>
+            <div class="city-result-name">${c.name}</div>
+            <div class="city-result-sub">${[c.admin1, c.country].filter(Boolean).join(' · ')}</div>
+          </div>`).join('')
+        : '<div style="color:var(--dim);font-size:.75rem;padding:6px">Aucun résultat</div>';
+    } catch(e) { console.warn('geocoding', e); }
+  }, 350);
+}
+function selectCity(c) {
+  LAT = c.latitude; LON = c.longitude; CITY = c.name;
+  localStorage.setItem('meteo_lat',  LAT);
+  localStorage.setItem('meteo_lon',  LON);
+  localStorage.setItem('meteo_city', CITY);
+  document.getElementById('city-label').textContent = CITY;
+  closeCityModal();
+  setMap('loc');
+  gTMin = null; gTMax = null;
+  APIS.forEach(api => document.getElementById(`ov-${api.id}`).classList.remove('gone'));
+  loadAll();
+}
+
+/* ── Chart.js global ── */
+Chart.defaults.font.family = "'Barlow Condensed',sans-serif";
+Chart.defaults.color = '#4d6a85';
+
+/* plugin grille verticale */
+Chart.register({
+  id: 'vGrid',
+  afterDraw(chart) {
+    const times = tmap[chart.canvas.id]; if (!times) return;
+    const { ctx, scales: { x }, chartArea: ca } = chart; if (!x) return;
+    ctx.save();
+    if (view === '7j') {
+      ctx.strokeStyle = 'rgba(30,95,154,.55)'; ctx.lineWidth = 1; ctx.setLineDash([3,4]);
+      times.forEach((t, i) => {
+        if (i > 0 && t.slice(11) === '00:00') drawVLine(ctx, x, i, ca);
+      });
+    } else {
+      ctx.lineWidth = 1; ctx.setLineDash([]);
+      times.forEach((t, i) => {
+        if (!i) return;
+        const hh = parseInt(t.slice(11,13), 10);
+        ctx.strokeStyle = hh % 6 === 0 ? 'rgba(30,95,154,.5)' : 'rgba(20,55,90,.25)';
+        drawVLine(ctx, x, i, ca);
+      });
+    }
+    ctx.restore();
+  }
+});
+function drawVLine(ctx, x, i, ca) {
+  const px = x.getPixelForValue(i);
+  if (px > ca.left && px < ca.right) {
+    ctx.beginPath(); ctx.moveTo(px, ca.top); ctx.lineTo(px, ca.bottom); ctx.stroke();
+  }
+}
+
+/* plugin ligne NOW */
+Chart.register({
+  id: 'nowLine',
+  afterDraw(chart) {
+    const times = tmap[chart.canvas.id]; if (!times) return;
+    const now = new Date(); now.setSeconds(0, 0);
+    const ni = times.findIndex(t => t >= fmtKey(now)); if (ni < 0) return;
+    const { ctx, scales: { x }, chartArea: ca } = chart; if (!x) return;
+    const px = x.getPixelForValue(ni);
+    if (px < ca.left || px > ca.right) return;
+    const col = cmap[chart.canvas.id] || '#00e5ff';
+    ctx.save();
+    ctx.globalAlpha = .18; ctx.strokeStyle = col; ctx.lineWidth = 7; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(px, ca.top); ctx.lineTo(px, ca.bottom); ctx.stroke();
+    ctx.globalAlpha = 1; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(px, ca.top); ctx.lineTo(px, ca.bottom); ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.font = "700 8px 'Barlow Condensed',sans-serif"; ctx.textAlign = 'left';
+    ctx.fillText('▶ NOW', px + 3, ca.top + 9);
+    ctx.restore();
+  }
+});
+
+/* plugin sync tooltip */
+Chart.register({
+  id: 'syncCursor',
+  afterEvent(chart, args) {
+    const ev = args.event;
+    if (ev.type === 'mouseout') {
+      Object.values(charts).forEach(c => {
+        if (c && c !== chart) { c.tooltip.setActiveElements([], {}); c.update('none'); }
+      });
+      return;
+    }
+    if (ev.type !== 'mousemove') return;
+    const { chartArea: ca, scales: { x } } = chart; if (!x) return;
+    if (ev.x < ca.left || ev.x > ca.right) return;
+    const idx = Math.max(0, Math.min(Math.round(x.getValueForPixel(ev.x)), chart.data.labels.length - 1));
+    Object.values(charts).forEach(c => {
+      if (!c || c === chart) return;
+      const si = Math.min(idx, c.data.labels.length - 1);
+      const cx = c.scales.x?.getPixelForValue(si) ?? 0;
+      const cy = c.chartArea ? c.chartArea.top + c.chartArea.height / 2 : 0;
+      c.tooltip.setActiveElements(c.data.datasets.map((_, di) => ({ datasetIndex: di, index: si })), { x: cx, y: cy });
+      c.update('none');
+    });
+  }
+});
+
+/* ── helpers ── */
+function fmtKey(d) {
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:00`;
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+
+/* ── données démo (fallback réseau) ── */
+function demoData() {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const time = [], apparent_temperature = [], precipitation = [], cloudcover = [];
+  for (let i = 0; i < 168; i++) {
+    const d = new Date(start.getTime() + i * 3600000), hh = d.getHours();
+    time.push(fmtKey(d));
+    apparent_temperature.push(+(12 + 8 * Math.sin((hh - 6) / 24 * 2 * Math.PI) + (Math.random() - .5) * 2).toFixed(1));
+    precipitation.push(Math.random() < .1 ? +(Math.random() * 4).toFixed(1) : 0);
+    cloudcover.push(Math.round(20 + 65 * Math.random()));
+  }
+  return { hourly: { time, apparent_temperature, precipitation, cloudcover }, _demo: true };
+}
+
+/* ── fetch open-meteo ── */
+async function fetchData(api) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}`
+    + `&hourly=apparent_temperature,precipitation,cloudcover&forecast_days=7&timezone=Europe%2FParis&models=${api.model}`;
+  try {
+    const r = await fetch(url); if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    d.hourly.time = d.hourly.time.map(t => t.replace('T', ' ').slice(0, 16));
+    return d;
+  } catch(e) { console.warn(`[${api.id}]`, e); return demoData(); }
+}
+
+/* ── slice données ── */
+function sliceData(data) {
+  const h = data.hourly, now = new Date();
+  if (view === '1j') {
+    const today = new Date(now); today.setHours(0, 0, 0, 0);
+    const idx = new Map(h.time.map((t, i) => [t, i]));
+    return Array.from({ length: 24 }, (_, hh) => {
+      const key = fmtKey(new Date(today.getTime() + hh * 3600000));
+      const i = idx.get(key);
+      return {
+        time:  key,
+        tData: i != null ? h.apparent_temperature[i] : null,
+        pData: i != null ? Math.min(h.precipitation[i], 5) : null,
+        cData: i != null ? h.cloudcover[i] : null,
+      };
+    }).reduce((acc, v) => {
+      acc.times.push(v.time); acc.tData.push(v.tData);
+      acc.pData.push(v.pData); acc.cData.push(v.cData);
+      return acc;
+    }, { times:[], tData:[], pData:[], cData:[] });
+  } else {
+    let s = h.time.findIndex(t => t >= fmtKey(now)); if (s < 0) s = 0;
+    return {
+      times: h.time.slice(s),
+      tData: h.apparent_temperature.slice(s),
+      pData: h.precipitation.slice(s).map(v => Math.min(v, 5)),
+      cData: h.cloudcover.slice(s),
+    };
+  }
+}
+
+/* ── labels axe X ── */
+function buildLabels(times) {
+  if (view === '1j') return times.map(t => `${pad(parseInt(t.slice(11,13), 10))}h`);
+  return times.map(t => {
+    const d = new Date(t.replace(' ', 'T')), hh = d.getHours();
+    if (hh === 12) return JOURS[d.getDay()].toUpperCase();
+    return '';
+  });
+}
+
+/* ── rendu graphique ── */
+function renderChart(api, data) {
+  if (charts[api.id]) { charts[api.id].destroy(); charts[api.id] = null; }
+  const { times, tData, pData, cData } = sliceData(data);
+  tmap[`c-${api.id}`] = times;
+  cmap[`c-${api.id}`] = api.color;
+
+  const nowKey = fmtKey(new Date());
+  let ni = times.findIndex(t => t >= nowKey); if (ni < 0) ni = 0;
+  const nhIdx = Math.min(ni + 1, times.length - 1);
+  const el = id => document.getElementById(`${api.id}-${id}`);
+  el('np').textContent = (pData[nhIdx] ?? 0).toFixed(1);
+  el('nt').textContent = tData[nhIdx] != null ? tData[nhIdx].toFixed(1) : '—';
+  el('nc').textContent = cData[nhIdx] ?? '—';
+
+  const canvas = document.getElementById(`c-${api.id}`);
+  const ctx = canvas.getContext('2d');
+  const gCloud = ctx.createLinearGradient(0, 0, 0, 200);
+  gCloud.addColorStop(0, 'rgba(176,196,222,.18)'); gCloud.addColorStop(1, 'rgba(176,196,222,.01)');
+
+  const pColors = pData.map(v =>
+    v == null ? 'transparent' :
+    v >= 4  ? 'rgba(2,119,189,.95)' :
+    v >= 2  ? 'rgba(41,182,246,.85)' :
+    v >= .3 ? 'rgba(79,195,247,.7)' : 'rgba(79,195,247,.25)');
+
+  const xTickColor = c => {
+    const lbl = c.tick?.label ?? '';
+    if (view === '7j') return lbl ? '#9ab0c8' : '#364f65';
+    return parseInt(lbl, 10) % 6 === 0 ? '#7a9ab8' : '#2d4458';
+  };
+
+  /* ── axe Y température : bornes globales pour comparabilité entre modèles ── */
+  const yTScale = {
+    position:'left',
+    grid:{ color:'rgba(26,58,92,.2)', drawTicks:false },
+    ticks:{
+      font:{ size:12, family:"'Barlow Condensed',sans-serif" },
+      color:'#b07a50', stepSize:1,
+      callback(v) { return Number.isInteger(v) ? v : ''; }
+    }
+  };
+  if (gTMin != null) { yTScale.min = gTMin; yTScale.max = gTMax; }
+
+  charts[api.id] = new Chart(ctx, {
+    data: {
+      labels: buildLabels(times),
+      datasets: [
+        { type:'line', data:cData, yAxisID:'yC',
+          borderColor:'rgba(176,196,222,.25)', backgroundColor:gCloud, fill:true,
+          tension:.4, pointRadius:0, hoverRadius:0, borderWidth:1, order:3, spanGaps:false },
+        { type:'bar', data:pData, yAxisID:'yP',
+          backgroundColor:pColors, borderColor:'transparent', borderRadius:1,
+          barPercentage:1, categoryPercentage:view==='1j'?.65:.92, order:2 },
+        { type:'line', data:tData, yAxisID:'yT',
+          borderColor:api.color, backgroundColor:'transparent',
+          tension:.4, pointRadius:0, hoverRadius:5,
+          pointHoverBackgroundColor: tData.map(v => v == null ? 'transparent' : v < 10 ? '#5bc8ff' : v > 28 ? '#ff5252' : '#e8f4ff'),
+          pointHoverBorderColor:'rgba(0,0,0,.3)', pointHoverBorderWidth:1,
+          borderWidth:2, order:1, spanGaps:false,
+          segment:{ borderColor: c => { const v = c.p1.parsed.y; return v < 10 ? '#5bc8ff' : v > 28 ? '#ff5252' : '#e8f4ff'; } }
+        }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      animation:{ duration:350, easing:'easeOutQuart' },
+      interaction:{ mode:'index', intersect:false },
+      plugins: {
+        legend:{ display:false },
+        tooltip:{
+          backgroundColor:'rgba(5,10,22,.72)',
+          borderColor:'rgba(30,95,154,.45)', borderWidth:1,
+          bodyFont:{ family:"'Barlow Condensed',sans-serif", size:12 },
+          boxWidth:0, boxHeight:0, boxPadding:0,
+          callbacks:{
+            title() { return ''; },
+            beforeBody(items) {
+              const d = {};
+              items.forEach(item => { d[item.datasetIndex] = item.raw; });
+              const lines = [];
+              if (d[2] != null) lines.push(`🌡 ${d[2].toFixed(1)}°C`);
+              if (d[1] != null) lines.push(`🌧 ${d[1].toFixed(1)} mm/h`);
+              if (d[0] != null) lines.push(`☁ ${d[0]}%`);
+              return lines;
+            },
+            label() { return ''; }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid:{ color:'rgba(0,0,0,0)', drawTicks:false },
+          ticks:{
+            maxRotation:0, autoSkip:false,
+            font:{ size:12, family:"'Barlow Condensed',sans-serif" },
+            color: xTickColor,
+            callback(val, i) {
+              if (view === '1j') {
+                const hh = parseInt(times[i]?.slice(11,13) ?? '0', 10);
+                return hh % 3 === 0 ? `${pad(hh)}h` : '';
+              }
+              return this.getLabelForValue(val);
+            }
+          }
+        },
+        yT: yTScale,
+        yP: {
+          position:'right', min:0, max:5,
+          grid:{ display:false },
+          ticks:{
+            font:{ size:12, family:"'Barlow Condensed',sans-serif" },
+            color:'#4a9ab8', stepSize:1,
+            callback(v) { return Number.isInteger(v) ? v : ''; }
+          }
+        },
+        yC: { display:false, min:0, max:100 }
+      }
+    }
+  });
+
+  document.getElementById(`ov-${api.id}`).classList.add('gone');
+}
+
+/* ── init : stocke tout, calcule bornes globales, rend ── */
+async function loadAll() {
+  const results = await Promise.all(APIS.map(fetchData));
+  APIS.forEach((api, i) => { store[api.id] = results[i]; });
+  computeGlobalTBounds();
+  APIS.forEach((api, i) => { renderChart(api, results[i]); });
+}
+
+loadAll();
+setTimeout(() => location.reload(), 30 * 60 * 1000);
+</script>
+</body>
+</html>
