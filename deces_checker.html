@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vérificateur décès — matchID</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHBhdGggZmlsbD0iIzFhMWExOCIgZD0iTTEwIDJoMTJsNiA3djE5bC0xMiA0LTEyLTRWOXoiLz48cmVjdCBmaWxsPSIjZjVmM2VlIiB4PSIxMyIgeT0iMTAiIHdpZHRoPSI2IiBoZWlnaHQ9IjkiIHJ4PSIzIi8+PC9zdmc+">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f5f3ee;--s:#fff;--b:#d4d0c8;--bs:#aaa89e;--t:#1a1a18;--tm:#6b6960;--a:#2a4d8f;--d:#8f2a2a;--dl:#fdf0f0;--ok:#1f6b3a;--okl:#eef7f2;--w:#7a5c10;--wl:#fdf8ec;--mono:'Courier New',monospace}
+body{font-family:Georgia,serif;background:var(--bg);color:var(--t);min-height:100vh}
+.wrap{max-width:960px;margin:0 auto;padding:1rem 1rem 2rem}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem;flex-wrap:wrap;gap:.5rem}
+.badges{display:flex;gap:.4rem;flex-wrap:wrap}
+.badge{font-family:var(--mono);font-size:.7rem;padding:.18rem .55rem;border:1px solid}
+.bd{color:var(--d);border-color:var(--d);background:var(--dl)}
+.ba{color:var(--ok);border-color:var(--ok);background:var(--okl)}
+.bw{color:var(--w);border-color:var(--w);background:var(--wl)}
+.dbdate{font-family:var(--mono);font-size:.68rem;color:var(--tm)}
+.bar{height:3px;background:var(--b);margin-bottom:.4rem}
+.fill{height:100%;background:var(--a);width:0;transition:width .4s}
+.st{font-family:var(--mono);font-size:.7rem;color:var(--tm);margin-bottom:.8rem;min-height:1em}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;flex-shrink:0}
+.dd{background:var(--d)}.da{background:var(--ok)}.dw{background:var(--w)}.dn{background:var(--bs)}
+.lk a{color:var(--a);text-decoration:none;font-size:.7rem;border-bottom:1px dotted var(--a)}
+.lk a:hover{border-bottom-style:solid}
+.tw{overflow-x:auto;border:1px solid var(--b)}
+table{width:100%;border-collapse:collapse;font-size:.78rem;background:var(--s)}
+thead tr{background:var(--t);color:#fff}
+th{padding:.55rem .7rem;text-align:left;font-family:var(--mono);font-size:.67rem;font-weight:normal;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+td{padding:.5rem .7rem;border-bottom:1px solid var(--b);vertical-align:middle;font-family:var(--mono);font-size:.77rem}
+tr:last-child td{border-bottom:none}
+.rd{background:var(--dl)}.ra{background:var(--okl)}.rw{background:var(--wl)}.rn{background:#fafaf8}
+.nq{color:var(--tm)}.nm{font-weight:bold}
+.ec{color:var(--d);font-style:italic}
+.cards{display:none;flex-direction:column;gap:.6rem}
+.card{background:var(--s);border:1px solid var(--b);padding:.85rem 1rem}
+.card.rd{background:var(--dl);border-color:#e8b8b8}
+.card.ra{background:var(--okl);border-color:#a8d8bc}
+.card.rw{background:var(--wl);border-color:#dbc98a}
+.card-top{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.5rem}
+.card-name{font-family:var(--mono);font-size:.85rem;font-weight:bold}
+.card-status{font-family:var(--mono);font-size:.75rem;display:flex;align-items:center;white-space:nowrap}
+.card-grid{display:grid;grid-template-columns:1fr 1fr;gap:.25rem .5rem}
+.card-lbl{font-family:var(--mono);font-size:.63rem;color:var(--tm);text-transform:uppercase;letter-spacing:.04em;margin-top:.3rem}
+.card-val{font-family:var(--mono);font-size:.75rem}
+.card-full{grid-column:1/-1}
+@media(max-width:600px){
+  .tw{display:none}
+  .cards{display:flex}
+  .wrap{padding:.75rem .75rem 2rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span style="font-size:1.3rem">⚰️</span>
+    <div style="display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">
+      <span class="dbdate" id="dbdate"></span>
+      <div class="badges" id="bdg"></div>
+    </div>
+  </div>
+  <div class="bar"><div class="fill" id="fill"></div></div>
+  <div class="st" id="st">Initialisation…</div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>#</th><th>Recherché</th><th>Statut</th><th>Nom en base</th><th>Naissance</th><th>Décès</th><th>Lieu décès</th><th>Fiche</th></tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+  <div class="cards" id="cards"></div>
+</div>
+<script>
+const PEOPLE=[
+  'gérald toulza',
+  'marion toulza',
+  'nicolas toulza',
+  'gilles banier',
+  'jacques varrennes'
+];
+
+const API='https://deces.matchid.io/deces/api/v1/search';
+const SC={
+  dead:{cls:'rd',dot:'dd',lbl:'Décédé·e'},
+  alive:{cls:'ra',dot:'da',lbl:'Non décédé·e'},
+  uncertain:{cls:'rw',dot:'dw',lbl:'Incertain'},
+  notfound:{cls:'rn',dot:'dn',lbl:'Introuvable'},
+  error:{cls:'rn',dot:'dn',lbl:'Erreur'}
+};
+const esc=s=>s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let rows=[];
+
+function fmt(d){
+  if(!d)return'—';
+  const s=String(d).replace(/\D/g,'');
+  if(s.length===8){const[y,m,dd]=[s.slice(0,4),s.slice(4,6),s.slice(6,8)];return dd==='00'?`${m}/${y}`:`${dd}/${m}/${y}`}
+  return s.length===6?`${s.slice(4)}/${s.slice(0,4)}`:s.length===4?s:d;
+}
+
+function buildRow(i,name,data,err){
+  const r={i,name};
+  if(err){r.st='error';r.err=err.message;return r}
+  const hits=data?.response?.hits||[];
+  if(!hits.length){r.st='notfound';return r}
+  const h=hits[0],src=h.source||h._source||{};
+  r.fullName=`${src.name?.first||''} ${src.name?.last||''}`.trim();
+  r.bd=src.birth?.date;r.dd=src.death?.date;
+  r.dc=src.death?.location?.city||src.death?.location?.departmentCode||'—';
+  r.id=src.id||null;
+  r.st=r.dd?(h.score<.5?'uncertain':'dead'):(h.score<.5?'uncertain':'alive');
+  return r;
+}
+
+function addTableRow(r){
+  const sc=SC[r.st],tr=document.createElement('tr');
+  tr.className=sc.cls;
+  const dot=`<span class="dot ${sc.dot}"></span>`;
+  if(r.st==='error'){
+    tr.innerHTML=`<td>${r.i}</td><td class="nq">${esc(r.name)}</td><td>${dot}${sc.lbl}</td><td class="ec" colspan="5">${esc(r.err)}</td>`;
+  } else if(r.st==='notfound'){
+    tr.innerHTML=`<td>${r.i}</td><td class="nq">${esc(r.name)}</td><td>${dot}${sc.lbl}</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td>`;
+  } else {
+    tr.innerHTML=`<td>${r.i}</td><td class="nq">${esc(r.name)}</td><td>${dot}${sc.lbl}</td><td class="nm">${esc(r.fullName)}</td><td>${fmt(r.bd)}</td><td>${fmt(r.dd)}</td><td>${esc(r.dc)}</td><td class="lk">${r.id?`<a href="https://deces.matchid.io/id/${r.id}" target="_blank">voir</a>`:'—'}</td>`;
+  }
+  document.getElementById('tb').appendChild(tr);
+}
+
+function addCard(r){
+  const sc=SC[r.st],div=document.createElement('div');
+  div.className='card '+sc.cls;
+  const dot=`<span class="dot ${sc.dot}"></span>`;
+  if(r.st==='error'||r.st==='notfound'){
+    div.innerHTML=`<div class="card-top"><span class="card-name">${esc(r.name)}</span><span class="card-status">${dot}${sc.lbl}</span></div>`;
+  } else {
+    const link=r.id?`<a href="https://deces.matchid.io/id/${r.id}" target="_blank">voir la fiche</a>`:'—';
+    div.innerHTML=`
+      <div class="card-top"><span class="card-name">${esc(r.fullName||r.name)}</span><span class="card-status">${dot}${sc.lbl}</span></div>
+      <div class="card-grid">
+        <div><div class="card-lbl">Recherché</div><div class="card-val nq">${esc(r.name)}</div></div>
+        <div><div class="card-lbl">Naissance</div><div class="card-val">${fmt(r.bd)}</div></div>
+        <div><div class="card-lbl">Décès</div><div class="card-val">${fmt(r.dd)}</div></div>
+        <div><div class="card-lbl">Lieu</div><div class="card-val">${esc(r.dc)}</div></div>
+        <div class="card-full"><div class="card-lbl">Fiche</div><div class="card-val lk">${link}</div></div>
+      </div>`;
+  }
+  document.getElementById('cards').appendChild(div);
+}
+
+function stats(){
+  const c={dead:0,alive:0,uncertain:0,notfound:0};
+  rows.forEach(r=>{c[r.st]!=null?c[r.st]++:c.notfound++});
+  document.getElementById('bdg').innerHTML=
+    (c.dead?`<span class="badge bd">${c.dead} décédé·e·s</span>`:'')+
+    (c.alive?`<span class="badge ba">${c.alive} non décédé·e·s</span>`:'')+
+    (c.uncertain?`<span class="badge bw">${c.uncertain} incertains</span>`:'');
+}
+
+(async()=>{
+  document.getElementById('dbdate').textContent='Base : 06/01/2026 · dernier décès : 31/10/2025';
+  for(let i=0;i<PEOPLE.length;i++){
+    const name=PEOPLE[i];
+    document.getElementById('fill').style.width=(i/PEOPLE.length*100)+'%';
+    document.getElementById('st').textContent=`[${i+1}/${PEOPLE.length}] ${name}…`;
+    let data=null,err=null;
+    try{
+      const res=await fetch(`${API}?q=${encodeURIComponent(name)}&size=5`);
+      if(!res.ok)throw new Error('HTTP '+res.status);
+      data=await res.json();
+    }catch(e){err=e}
+    const r=buildRow(i+1,name,data,err);
+    rows.push(r);addTableRow(r);addCard(r);stats();
+    if(i<PEOPLE.length-1)await sleep(1000);
+  }
+  document.getElementById('fill').style.width='100%';
+  document.getElementById('st').textContent=`[${PEOPLE.length}/${PEOPLE.length}] Terminé.`;
+})();
+</script>
+</body>
+</html>
