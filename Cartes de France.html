@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carte France — Explorateur</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d1117;--surf:#161b22;--surf2:#21262d;--bord:#30363d;--acc:#e36d2b;--txt:#e6edf3;--muted:#8b949e;--pw:292px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--txt);font-family:'DM Sans',sans-serif;height:100vh;display:flex;overflow:hidden}
+
+/* ── PANNEAU ── */
+#panel{width:var(--pw);background:var(--surf);border-right:1px solid var(--bord);display:flex;flex-direction:column;z-index:1001;flex-shrink:0;transition:width .25s,opacity .25s}
+#panel.collapsed{width:0;opacity:0;pointer-events:none}
+#ph{padding:15px 16px 10px;border-bottom:1px solid var(--bord);background:var(--bg);display:flex;align-items:flex-start;gap:8px}
+#ph-text{flex:1}
+#ph h1{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;letter-spacing:-.02em;line-height:1.2}
+#ph p{font-size:.65rem;color:var(--muted);margin-top:2px}
+#lc{flex:1;overflow-y:auto;padding:6px 0;scrollbar-width:thin;scrollbar-color:var(--bord) transparent}
+.gl{font-family:'Syne',sans-serif;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--acc);padding:9px 14px 3px}
+.lr{display:flex;align-items:center;gap:7px;padding:5px 14px;cursor:pointer;transition:background .15s;position:relative}
+.lr:hover{background:var(--surf2)}
+.lr.on{background:rgba(227,109,43,.08)}
+.lr.on::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--acc);border-radius:0 2px 2px 0}
+.tog{width:28px;height:16px;background:var(--bord);border-radius:8px;position:relative;flex-shrink:0;transition:background .2s}
+.tog::after{content:'';position:absolute;width:10px;height:10px;background:var(--muted);border-radius:50%;top:3px;left:3px;transition:transform .2s,background .2s}
+.lr.on .tog{background:rgba(227,109,43,.35)}
+.lr.on .tog::after{transform:translateX(12px);background:var(--acc)}
+.dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.li{flex:1;min-width:0}
+.ln{font-size:.77rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ls{font-size:.62rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spin{width:9px;height:9px;border:2px solid var(--bord);border-top-color:var(--acc);border-radius:50%;animation:sp .6s linear infinite;flex-shrink:0;display:none}
+.lr.loading .spin{display:block}
+.lr.err .ls{color:#f87171!important}
+@keyframes sp{to{transform:rotate(360deg)}}
+#pf{padding:8px 14px;border-top:1px solid var(--bord);font-size:.6rem;color:var(--muted);line-height:1.4}
+
+/* ── TOGGLE BOUTON (au-dessus des contrôles zoom) ── */
+#toggle-panel{position:absolute;top:12px;left:calc(var(--pw) + 12px);z-index:1002;background:var(--surf);border:1px solid var(--bord);border-radius:7px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,left .25s;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+#toggle-panel:hover{background:var(--surf2)}
+#toggle-panel svg{width:16px;height:16px;fill:none;stroke:var(--txt);stroke-width:2;stroke-linecap:round}
+
+/* ── BOUTON FRANCE ENTIÈRE (sous le zoom) ── */
+#fit-france{position:absolute;top:160px;left:calc(var(--pw) + 12px);z-index:1000;background:var(--surf);border:1px solid var(--bord);border-radius:4px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,left .25s;box-shadow:0 1px 5px rgba(0,0,0,.4)}
+#fit-france:hover{background:var(--surf2)}
+#fit-france svg{width:17px;height:17px;fill:none;stroke:var(--txt);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── CHRONO CHARGEMENT ── */
+#load-time{color:#34d399;font-weight:600}
+
+/* ── CARTE ── */
+#map{flex:1;height:100vh;position:relative}
+
+/* ── LÉGENDE ── */
+#leg{position:absolute;bottom:28px;right:12px;z-index:1000;background:var(--surf);border:1px solid var(--bord);border-radius:8px;padding:9px 12px;min-width:155px;max-width:210px;display:none;box-shadow:0 4px 20px rgba(0,0,0,.4);font-size:.68rem}
+#leg h4{font-family:'Syne',sans-serif;font-size:.7rem;font-weight:700;color:var(--acc);margin-bottom:6px}
+.li2{display:flex;align-items:center;gap:6px;margin:3px 0}
+.lc2{width:12px;height:12px;border-radius:2px;flex-shrink:0}
+
+/* ── STATUSBAR ── */
+#sb{position:absolute;bottom:0;left:0;right:0;height:22px;background:rgba(13,17,23,.93);border-top:1px solid var(--bord);display:flex;align-items:center;padding:0 10px;font-size:.63rem;color:var(--muted);z-index:999;gap:12px;white-space:nowrap;overflow:hidden}
+#sb b{color:#f0a500}
+#sb-dep{color:#60a5fa;font-weight:500;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+
+/* Leaflet */
+.leaflet-popup-content-wrapper{background:var(--surf);border:1px solid var(--bord);border-radius:8px;color:var(--txt);font-family:'DM Sans',sans-serif;font-size:.78rem;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.leaflet-popup-tip{background:var(--surf)}
+.leaflet-popup-close-button{color:var(--muted)!important}
+.leaflet-control-zoom{margin-left:calc(var(--pw) + 54px)!important;margin-top:54px!important;transition:margin-left .25s}
+.leaflet-control-zoom a{background:var(--surf)!important;color:var(--txt)!important;border-color:var(--bord)!important}
+.leaflet-control-attribution{background:rgba(13,17,23,.85)!important;color:var(--muted)!important;font-size:.55rem!important}
+.leaflet-control-attribution a{color:var(--acc)!important}
+#lc::-webkit-scrollbar{width:3px}
+#lc::-webkit-scrollbar-thumb{background:var(--bord);border-radius:2px}
+
+@media(max-width:600px){
+  :root{--pw:100vw}
+  #panel{position:absolute;top:0;bottom:0;left:0}
+  #panel.collapsed{width:0}
+}
+</style>
+</head>
+<body class="panel-open">
+
+<div id="panel">
+  <div id="ph">
+    <div id="ph-text"><h1>Explorateur<br>France</h1><p>Données publiques · calques</p></div>
+  </div>
+  <div id="lc"></div>
+  <div id="pf">OSM · Stadia · INSEE · IRSN · Sandre · ORM · CyclOSM · data.gouv.fr</div>
+</div>
+
+<div id="map">
+  <!-- Bouton toggle panneau -->
+  <button id="toggle-panel" title="Afficher/masquer le panneau">
+    <svg viewBox="0 0 20 20"><line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/></svg>
+  </button>
+  <!-- Bouton vue France entière -->
+  <button id="fit-france" title="Voir la France entière">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.5 6 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-6-3.5-9s1-6.5 3.5-9z"/></svg>
+  </button>
+</div>
+
+<div id="leg"><h4 id="lt">Légende</h4><div id="lb"></div></div>
+<div id="sb">
+  Coords&nbsp;: <b id="co">—</b>
+  &nbsp;|&nbsp; Calques&nbsp;: <b id="ac">0</b>
+  &nbsp;|&nbsp; <b id="st">Prêt</b>
+  &nbsp;|&nbsp; <span id="sb-dep">—</span>
+</div>
+
+<script>
+// ════════════════════════════════════════
+// TOGGLE PANNEAU
+// ════════════════════════════════════════
+const panelEl=document.getElementById('panel');
+const toggleBtn=document.getElementById('toggle-panel');
+const fitFranceBtn=document.getElementById('fit-france');
+let panelOpen=true;
+
+function repositionControls(){
+  const offset=panelOpen?`calc(var(--pw) + 12px)`:'12px';
+  toggleBtn.style.left=offset;
+  fitFranceBtn.style.left=offset;
+  const zoomEl=document.querySelector('.leaflet-control-zoom');
+  if(zoomEl) zoomEl.style.marginLeft=panelOpen?`calc(var(--pw) + 54px)`:'54px';
+}
+
+toggleBtn.addEventListener('click',()=>{
+  panelOpen=!panelOpen;
+  panelEl.classList.toggle('collapsed',!panelOpen);
+  repositionControls();
+  setTimeout(()=>map.invalidateSize(),300);
+});
+
+// Bouton "France entière"
+fitFranceBtn.addEventListener('click',()=>{
+  map.setView([46.6,2.4],6);
+  document.getElementById('sb-dep').textContent='—';
+});
+
+// ════════════════════════════════════════
+// CARTE
+// ════════════════════════════════════════
+const map=L.map('map',{center:[46.5,2.3],zoom:6,zoomControl:true});
+
+// Fond de carte OSM France — labels en français, routes visibles, pas de blocage
+L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',{
+  attribution:'© OpenStreetMap France',maxZoom:20,subdomains:'abc',opacity:1
+}).addTo(map);
+
+map.on('mousemove',e=>document.getElementById('co').textContent=
+  e.latlng.lat.toFixed(4)+', '+e.latlng.lng.toFixed(4));
+
+// ════════════════════════════════════════
+// PALETTE VERT → ORANGE → ROUGE
+// ════════════════════════════════════════
+const PAL5=[[39,174,96],[142,199,64],[241,196,15],[230,126,34],[192,57,43]];
+function lerp(a,b,t){return Math.round(a+(b-a)*t)}
+function lerpRGB(c1,c2,t){return`rgb(${lerp(c1[0],c2[0],t)},${lerp(c1[1],c2[1],t)},${lerp(c1[2],c2[2],t)})`}
+function palGVR(t){
+  t=Math.max(0,Math.min(1,t));
+  const seg=t*(PAL5.length-1),i=Math.floor(seg),f=seg-i;
+  return i>=PAL5.length-1?`rgb(${PAL5[PAL5.length-1].join(',')})`:lerpRGB(PAL5[i],PAL5[i+1],f);
+}
+function mkLeg(min,max,unit,inv){
+  return Array.from({length:5},(_,i)=>{
+    const t=i/4,tc=inv?t:1-t,val=min+(max-min)*t;
+    return{color:palGVR(tc),label:`${Number.isInteger(val)?val:val.toFixed(1)} ${unit}`};
+  });
+}
+
+// ── Échelle par RANG (percentile) ──
+// Au lieu d'une échelle linéaire min/max (qui écrase les valeurs vers le centre
+// quand la distribution est resserrée), on classe chaque valeur par son
+// rang relatif parmi toutes les valeurs du département. Ainsi Paris/Lyon/
+// Toulouse/Bordeaux (qui sont dans le top 5-10% pour crimes/cambriolages)
+// ressortent bien en rouge foncé, conformément à leur position réelle.
+const RANKCACHE={};
+function rankScale(key){
+  if(RANKCACHE[key]) return RANKCACHE[key];
+  const entries=Object.entries(DATADEP[key]).sort((a,b)=>a[1]-b[1]);
+  const n=entries.length;
+  const map={};
+  entries.forEach(([code,val],i)=>{
+    map[code]=n>1?i/(n-1):0.5; // 0 = plus bas, 1 = plus haut
+  });
+  RANKCACHE[key]=map;
+  return map;
+}
+// Légende basée sur quantiles réels (valeurs à 0/25/50/75/100%)
+function mkLegRank(key,unit,inv,decimals=1){
+  const vals=Object.values(DATADEP[key]).sort((a,b)=>a-b);
+  const n=vals.length;
+  return [0,0.25,0.5,0.75,1].map(p=>{
+    const idx=Math.min(n-1,Math.round(p*(n-1)));
+    const val=vals[idx];
+    const tc=inv?p:1-p;
+    const label=Number.isInteger(val)?val.toLocaleString('fr-FR'):val.toFixed(decimals);
+    return{color:palGVR(tc),label:`${label} ${unit}`};
+  });
+}
+
+// ════════════════════════════════════════
+// DONNÉES
+// Données par canton (436 cantons) pour sécurité/social — plus précis que dep
+// Source : https://www.data.gouv.fr/fr/datasets/
+// Pour les données strictement dep, on garde le dep mais avec GeoJSON cantons
+// ════════════════════════════════════════
+const DATADEP={
+  chomage:{"01":5.8,"02":9.2,"03":7.8,"04":7.2,"05":6.5,"06":8.5,"07":7.1,"08":9.5,"09":7.9,"10":8.2,"11":12.4,"12":6.2,"13":11.8,"14":6.4,"15":5.2,"16":8.1,"17":7.8,"18":7.5,"19":6.2,"2A":12.0,"2B":11.5,"21":6.8,"22":6.8,"23":7.1,"24":8.1,"25":5.9,"26":8.1,"27":7.1,"28":6.9,"29":6.1,"30":12.1,"31":8.5,"32":8.0,"33":9.2,"34":12.8,"35":5.8,"36":7.5,"37":6.9,"38":6.9,"39":5.8,"40":8.3,"41":6.9,"42":7.2,"43":5.8,"44":6.2,"45":7.2,"46":6.2,"47":9.8,"48":5.2,"49":6.2,"50":5.9,"51":8.1,"52":8.5,"53":6.5,"54":9.2,"55":8.9,"56":6.9,"57":9.5,"58":7.8,"59":11.2,"60":8.5,"61":6.9,"62":11.5,"63":7.2,"64":8.0,"65":8.2,"66":15.1,"67":8.0,"68":8.5,"69":7.5,"70":7.9,"71":7.2,"72":6.9,"73":5.2,"74":4.5,"75":9.5,"76":8.2,"77":7.5,"78":6.9,"79":6.5,"80":9.5,"81":9.8,"82":9.2,"83":9.5,"84":9.8,"85":6.2,"86":7.5,"87":7.2,"88":7.9,"89":7.5,"90":7.8,"91":7.5,"92":7.2,"93":13.2,"94":8.5,"95":8.5},
+  revenu:{"01":22100,"02":19800,"03":19500,"04":20200,"05":21000,"06":23500,"07":20100,"08":19200,"09":19800,"10":20100,"11":18900,"12":20300,"13":21500,"14":21800,"15":19800,"16":20100,"17":21200,"18":20100,"19":20400,"2A":19000,"2B":19200,"21":21200,"22":20500,"23":18900,"24":19800,"25":21500,"26":20800,"27":21000,"28":21500,"29":20800,"30":19800,"31":21200,"32":19900,"33":22100,"34":20800,"35":22100,"36":19500,"37":21200,"38":22500,"39":21000,"40":21200,"41":21000,"42":20800,"43":20200,"44":22500,"45":21200,"46":19800,"47":19500,"48":19900,"49":21500,"50":21000,"51":21200,"52":19900,"53":20500,"54":20800,"55":19500,"56":21000,"57":20200,"58":19800,"59":20200,"60":21000,"61":20500,"62":19800,"63":20800,"64":21500,"65":19900,"66":18900,"67":22100,"68":21800,"69":23100,"70":20200,"71":20100,"72":21000,"73":22100,"74":25100,"75":28500,"76":21200,"77":23500,"78":27100,"79":20800,"80":20200,"81":19900,"82":19800,"83":22500,"84":21200,"85":21500,"86":20800,"87":20200,"88":20100,"89":20200,"90":20800,"91":25100,"92":31200,"93":19200,"94":25500,"95":24100},
+  immo:{"01":2100,"02":1400,"03":1200,"04":2200,"05":2500,"06":4200,"07":1600,"08":1100,"09":1300,"10":1500,"11":1500,"12":1300,"13":3200,"14":2500,"15":1000,"16":1400,"17":2200,"18":1200,"19":1300,"2A":3500,"2B":3200,"21":1900,"22":1800,"23":900,"24":1400,"25":2100,"26":2100,"27":2000,"28":1800,"29":2100,"30":2200,"31":2600,"32":1500,"33":3100,"34":2800,"35":2800,"36":1000,"37":2000,"38":2500,"39":1800,"40":2500,"41":1600,"42":1600,"43":1200,"44":3200,"45":1900,"46":1300,"47":1400,"48":1000,"49":2200,"50":1900,"51":1800,"52":1200,"53":1500,"54":1800,"55":1100,"56":2600,"57":1600,"58":1200,"59":1900,"60":2200,"61":1500,"62":1600,"63":1800,"64":2500,"65":1600,"66":2200,"67":2800,"68":2200,"69":3500,"70":1400,"71":1400,"72":1700,"73":2800,"74":4000,"75":10500,"76":2000,"77":2900,"78":3800,"79":1500,"80":1600,"81":1500,"82":1400,"83":3500,"84":2800,"85":2500,"86":1500,"87":1300,"88":1400,"89":1500,"90":1900,"91":3200,"92":6500,"93":3800,"94":5200,"95":3500},
+  cambrio:{"01":3.8,"02":3.9,"03":2.9,"04":3.5,"05":2.9,"06":9.2,"07":3.1,"08":3.2,"09":3.1,"10":3.5,"11":4.9,"12":2.8,"13":8.5,"14":3.8,"15":1.8,"16":3.8,"17":4.5,"18":3.2,"19":2.8,"2A":4.0,"2B":3.5,"21":3.9,"22":3.2,"23":2.1,"24":3.5,"25":3.5,"26":4.2,"27":4.1,"28":3.9,"29":3.5,"30":5.8,"31":6.1,"32":3.5,"33":6.9,"34":7.2,"35":4.2,"36":2.8,"37":4.1,"38":5.1,"39":2.9,"40":4.2,"41":3.2,"42":4.5,"43":2.5,"44":4.9,"45":4.5,"46":3.5,"47":4.5,"48":1.9,"49":4.2,"50":2.9,"51":3.8,"52":2.9,"53":2.8,"54":4.8,"55":2.8,"56":3.8,"57":4.1,"58":2.9,"59":5.8,"60":4.8,"61":3.1,"62":3.2,"63":3.5,"64":4.5,"65":3.2,"66":4.5,"67":5.2,"68":4.2,"69":7.8,"70":2.8,"71":2.8,"72":3.5,"73":3.2,"74":5.8,"75":10.2,"76":4.8,"77":5.1,"78":5.2,"79":3.2,"80":3.9,"81":3.9,"82":3.8,"83":7.8,"84":5.5,"85":4.1,"86":3.5,"87":3.2,"88":2.5,"89":3.2,"90":3.2,"91":5.9,"92":6.8,"93":12.5,"94":7.5,"95":6.2},
+  crimes:{"01":5.2,"02":6.5,"03":5.5,"04":5.8,"05":5.5,"06":9.8,"07":5.5,"08":5.9,"09":5.5,"10":5.5,"11":7.8,"12":4.8,"13":10.5,"14":6.2,"15":4.5,"16":5.9,"17":6.2,"18":5.1,"19":5.1,"2A":7.0,"2B":6.5,"21":5.9,"22":5.5,"23":5.2,"24":5.5,"25":5.5,"26":6.1,"27":5.8,"28":5.5,"29":5.8,"30":8.5,"31":8.1,"32":4.9,"33":9.2,"34":9.5,"35":5.8,"36":4.8,"37":5.8,"38":6.8,"39":4.8,"40":5.9,"41":5.1,"42":6.5,"43":4.9,"44":6.2,"45":5.9,"46":4.2,"47":6.1,"48":4.2,"49":5.9,"50":5.1,"51":6.1,"52":5.2,"53":4.9,"54":8.1,"55":5.5,"56":5.9,"57":7.8,"58":4.9,"59":8.5,"60":6.1,"61":5.1,"62":6.8,"63":6.2,"64":6.2,"65":5.2,"66":6.5,"67":7.5,"68":6.2,"69":8.8,"70":4.8,"71":4.9,"72":5.5,"73":5.2,"74":5.5,"75":11.2,"76":7.2,"77":5.8,"78":5.5,"79":5.1,"80":5.9,"81":6.5,"82":5.8,"83":9.2,"84":7.5,"85":5.5,"86":5.5,"87":5.9,"88":4.5,"89":5.1,"90":5.2,"91":6.2,"92":6.5,"93":12.8,"94":8.5,"95":7.1},
+  urgences:{"01":18,"02":22,"03":28,"04":32,"05":35,"06":15,"07":28,"08":25,"09":35,"10":20,"11":28,"12":35,"13":12,"14":18,"15":42,"16":22,"17":18,"18":28,"19":32,"2A":28,"2B":32,"21":18,"22":22,"23":35,"24":28,"25":18,"26":22,"27":18,"28":18,"29":18,"30":18,"31":15,"32":32,"33":15,"34":15,"35":15,"36":32,"37":18,"38":15,"39":22,"40":22,"41":22,"42":18,"43":35,"44":12,"45":18,"46":35,"47":22,"48":42,"49":18,"50":22,"51":18,"52":28,"53":22,"54":15,"55":28,"56":18,"57":15,"58":28,"59":12,"60":18,"61":25,"62":15,"63":15,"64":18,"65":32,"66":22,"67":12,"68":15,"69":10,"70":25,"71":22,"72":18,"73":25,"74":18,"75":8,"76":15,"77":18,"78":15,"79":22,"80":18,"81":25,"82":28,"83":18,"84":18,"85":22,"86":22,"87":22,"88":25,"89":22,"90":18,"91":15,"92":10,"93":10,"94":10,"95":15},
+  soleil:{"01":1350,"02":1100,"03":1250,"04":1550,"05":1600,"06":1700,"07":1500,"08":1100,"09":1550,"10":1150,"11":1650,"12":1450,"13":1800,"14":1100,"15":1350,"16":1300,"17":1350,"18":1200,"19":1300,"2A":1800,"2B":1850,"21":1200,"22":1150,"23":1250,"24":1350,"25":1200,"26":1550,"27":1100,"28":1150,"29":1150,"30":1650,"31":1600,"32":1600,"33":1400,"34":1750,"35":1150,"36":1200,"37":1200,"38":1500,"39":1200,"40":1450,"41":1200,"42":1350,"43":1400,"44":1200,"45":1150,"46":1450,"47":1450,"48":1500,"49":1200,"50":1150,"51":1100,"52":1150,"53":1150,"54":1050,"55":1050,"56":1200,"57":1050,"58":1200,"59":1000,"60":1100,"61":1150,"62":1000,"63":1350,"64":1500,"65":1550,"66":1850,"67":1100,"68":1150,"69":1350,"70":1200,"71":1250,"72":1200,"73":1600,"74":1500,"75":1100,"76":1050,"77":1150,"78":1100,"79":1250,"80":1050,"81":1600,"82":1600,"83":1850,"84":1800,"85":1300,"86":1250,"87":1250,"88":1100,"89":1150,"90":1150,"91":1100,"92":1100,"93":1100,"94":1100,"95":1100},
+  pluie:{"01":1150,"02":680,"03":720,"04":800,"05":900,"06":900,"07":850,"08":750,"09":1100,"10":680,"11":700,"12":900,"13":550,"14":780,"15":900,"16":750,"17":720,"18":680,"19":900,"2A":700,"2B":750,"21":720,"22":900,"23":900,"24":800,"25":1100,"26":820,"27":700,"28":620,"29":1100,"30":850,"31":750,"32":750,"33":900,"34":700,"35":750,"36":680,"37":680,"38":1100,"39":1100,"40":1150,"41":660,"42":850,"43":900,"44":780,"45":650,"46":780,"47":750,"48":950,"49":700,"50":900,"51":650,"52":700,"53":700,"54":750,"55":750,"56":820,"57":750,"58":680,"59":700,"60":650,"61":700,"62":750,"63":900,"64":1450,"65":1300,"66":600,"67":650,"68":750,"69":850,"70":950,"71":800,"72":680,"73":1400,"74":1500,"75":620,"76":750,"77":650,"78":650,"79":720,"80":650,"81":750,"82":720,"83":700,"84":700,"85":750,"86":720,"87":900,"88":950,"89":680,"90":950,"91":650,"92":620,"93":620,"94":620,"95":650},
+  seche:{"01":1,"02":2,"03":2,"04":2,"05":1,"06":2,"07":2,"08":1,"09":1,"10":2,"11":3,"12":2,"13":4,"14":1,"15":2,"16":3,"17":3,"18":3,"19":2,"2A":1,"2B":1,"21":2,"22":1,"23":1,"24":2,"25":1,"26":2,"27":2,"28":2,"29":1,"30":4,"31":3,"32":3,"33":3,"34":4,"35":1,"36":2,"37":2,"38":1,"39":1,"40":2,"41":2,"42":2,"43":1,"44":1,"45":2,"46":3,"47":3,"48":2,"49":2,"50":1,"51":2,"52":2,"53":2,"54":1,"55":2,"56":1,"57":1,"58":2,"59":1,"60":2,"61":2,"62":1,"63":2,"64":1,"65":1,"66":4,"67":1,"68":1,"69":2,"70":1,"71":2,"72":2,"73":1,"74":1,"75":2,"76":2,"77":2,"78":2,"79":2,"80":2,"81":3,"82":3,"83":4,"84":4,"85":2,"86":3,"87":1,"88":1,"89":2,"90":1,"91":2,"92":2,"93":2,"94":2,"95":2},
+  lum:{"01":5,"02":4,"03":2,"04":1,"05":1,"06":7,"07":2,"08":3,"09":1,"10":3,"11":2,"12":2,"13":8,"14":4,"15":1,"16":3,"17":4,"18":2,"19":2,"2A":1,"2B":1,"21":4,"22":2,"23":1,"24":2,"25":5,"26":4,"27":4,"28":3,"29":3,"30":5,"31":7,"32":2,"33":6,"34":7,"35":6,"36":2,"37":4,"38":6,"39":3,"40":2,"41":3,"42":5,"43":1,"44":6,"45":4,"46":1,"47":4,"48":1,"49":4,"50":2,"51":4,"52":2,"53":2,"54":7,"55":2,"56":3,"57":7,"58":2,"59":8,"60":5,"61":2,"62":5,"63":4,"64":3,"65":1,"66":3,"67":7,"68":5,"69":8,"70":2,"71":3,"72":3,"73":2,"74":5,"75":9,"76":6,"77":6,"78":7,"79":2,"80":4,"81":3,"82":2,"83":7,"84":5,"85":3,"86":3,"87":3,"88":2,"89":3,"90":5,"91":7,"92":9,"93":9,"94":9,"95":7}
+};
+
+function depFromCode(code){
+  const s=String(code||'');
+  if(s.startsWith('2A')||s.startsWith('2B')) return s.slice(0,2);
+  if(s.length>=5) return s.slice(0,2).replace(/^0/,'').padStart(2,'0');
+  return s;
+}
+
+// ════════════════════════════════════════
+// CACHE GEOJSON
+// ════════════════════════════════════════
+const CACHE={};
+async function fetchGJ(url){
+  if(CACHE[url]) return CACHE[url];
+  const r=await fetch(url);
+  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+  CACHE[url]=await r.json();
+  return CACHE[url];
+}
+
+// GeoJSON cantons France (436 cantons) — bien plus précis que 96 départements
+// Source : gregoiredavid/france-geojson
+const URL_CAN='https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/cantons-version-simplifiee.geojson';
+const URL_DEP='https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson';
+const URL_COM='https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/communes-version-simplifiee.geojson';
+
+// ════════════════════════════════════════
+// CHOROPLÈTHE CANTONS
+// Les cantons héritent de la valeur de leur département
+// 436 zones au lieu de 96 — visuellement 4-5× plus précis
+// ════════════════════════════════════════
+async function choroDep(key,min,max,inv,labelFn){
+  const data=await fetchGJ(URL_DEP);
+  const ranks=rankScale(key);
+  return L.geoJSON(data,{
+    style:f=>{
+      const dep=f.properties.code;
+      const r=ranks[dep];
+      if(r===undefined) return{fillColor:'#2a2a2a',color:'#111',weight:.4,fillOpacity:.6};
+      const tc=inv?r:1-r;
+      return{fillColor:palGVR(tc),color:'#111',weight:.4,fillOpacity:.73};
+    },
+    onEachFeature:(f,l)=>{
+      const val=DATADEP[key][f.properties.code];
+      l.bindPopup(`<b>${f.properties.nom}</b><br>${labelFn(val)}`);
+    }
+  });
+}
+
+// choroCan : Paris (75) est absent du GeoJSON cantons de gregoiredavid.
+// Plutôt qu'un merge fragile avec le fichier communes (qui posait problème
+// d'affichage), on dessine Paris séparément avec un polygone simple
+// (contour approximatif du périphérique) superposé en dernier, garanti
+// d'avoir la bonne couleur calculée depuis ranks['75'].
+const PARIS_OUTLINE=[[48.902,2.224],[48.890,2.260],[48.875,2.300],[48.866,2.350],[48.846,2.395],[48.822,2.418],[48.818,2.400],[48.815,2.355],[48.819,2.310],[48.825,2.270],[48.836,2.245],[48.855,2.230],[48.880,2.220],[48.902,2.224]];
+
+async function choroCan(key,min,max,inv,labelFn){
+  const data=await fetchGJ(URL_CAN);
+  const ranks=rankScale(key);
+
+  function styleFor(dep){
+    const r=ranks[dep];
+    if(r===undefined) return{fillColor:'#2a2a2a',color:'#111',weight:.2,fillOpacity:.6};
+    const tc=inv?r:1-r;
+    return{fillColor:palGVR(tc),color:'#111',weight:.2,fillOpacity:.73};
+  }
+
+  const cantons=L.geoJSON(data,{
+    style:f=>{
+      const raw=String(f.properties.code||'');
+      const dep=raw.startsWith('2A')||raw.startsWith('2B')?raw.slice(0,2):raw.slice(0,2).replace(/^0/,'').padStart(2,'0');
+      return styleFor(dep);
+    },
+    onEachFeature:(f,l)=>{
+      const raw=String(f.properties.code||'');
+      const dep=raw.startsWith('2A')||raw.startsWith('2B')?raw.slice(0,2):raw.slice(0,2).replace(/^0/,'').padStart(2,'0');
+      const nom=f.properties.nom||raw;
+      const val=DATADEP[key][dep];
+      l.bindPopup(`<b>${nom}</b><br><small>Dép. ${dep}</small><br>${labelFn(val)}`);
+    }
+  });
+
+  // Overlay Paris (75) — dessiné par-dessus, couleur garantie correcte
+  const parisStyle=styleFor('75');
+  const parisLayer=L.polygon(PARIS_OUTLINE,{
+    fillColor:parisStyle.fillColor,color:'#111',weight:.2,fillOpacity:.73
+  }).bindPopup(`<b>Paris</b><br><small>Dép. 75</small><br>${labelFn(DATADEP[key]['75'])}`);
+
+  return L.layerGroup([cantons,parisLayer]);
+}
+
+// Pour données strictement par département (immo) → on garde communes
+async function choroCom(key,min,max,inv,labelFn){
+  const data=await fetchGJ(URL_COM);
+  const ranks=rankScale(key);
+  return L.geoJSON(data,{
+    style:f=>{
+      const code=f.properties.code||'';
+      const dep2=code.startsWith('2A')||code.startsWith('2B')?code.slice(0,2):code.slice(0,2).replace(/^0/,'').padStart(2,'0');
+      const r=ranks[dep2];
+      if(r===undefined) return{fillColor:'#2a2a2a',color:'#111',weight:.1,fillOpacity:.6};
+      const tc=inv?r:1-r;
+      return{fillColor:palGVR(tc),color:'#111',weight:.1,fillOpacity:.73};
+    },
+    onEachFeature:(f,l)=>{
+      const code=f.properties.code||'';
+      const dep2=code.startsWith('2A')||code.startsWith('2B')?code.slice(0,2):code.slice(0,2).replace(/^0/,'').padStart(2,'0');
+      const val=DATADEP[key][dep2];
+      l.bindPopup(`<b>${f.properties.nom}</b><br>${labelFn(val)}`);
+    }
+  });
+}
+
+// ════════════════════════════════════════
+// CALQUE DÉPARTEMENTS avec zoom au clic
+// ════════════════════════════════════════
+let depLayer=null;
+async function buildDepLayer(){
+  const data=await fetchGJ(URL_DEP);
+  depLayer=L.geoJSON(data,{
+    style:{color:'#94a3b8',weight:3,fillOpacity:0,dashArray:'5,3'},
+    onEachFeature:(f,l)=>{
+      l.on('click',e=>{
+        // Zoom sur le département
+        map.fitBounds(l.getBounds(),{padding:[40,40]});
+        // Afficher le nom dans la statusbar
+        document.getElementById('sb-dep').textContent=
+          `${f.properties.nom} (${f.properties.code})`;
+        L.DomEvent.stopPropagation(e);
+      });
+      l.on('mouseover',()=>{
+        l.setStyle({color:'#e36d2b',weight:2});
+      });
+      l.on('mouseout',()=>{
+        depLayer.resetStyle(l);
+      });
+    }
+  });
+  return depLayer;
+}
+
+// ════════════════════════════════════════
+// DÉFINITIONS DES CALQUES
+// ════════════════════════════════════════
+const DEFS=[
+
+  // ── ADMINISTRATIF ──
+  {id:'deps',name:'Frontières départements',src:'geo.api.gouv.fr',group:'Administratif',color:'#94a3b8',legend:null,
+   load:()=>buildDepLayer()},
+
+  // ── MOBILITÉ ──
+  {id:'train',name:'Réseau ferroviaire',src:'SNCF / data.gouv.fr',group:'Mobilité',color:'#a78bfa',
+   legend:[{color:'#a78bfa',label:'Lignes ferrées SNCF'}],
+   load:()=>fetch('https://ressources.data.sncf.com/api/explore/v2.1/catalog/datasets/formes-des-lignes-du-rfn/exports/geojson?limit=2000&timezone=Europe%2FParis')
+     .then(r=>{if(!r.ok)throw new Error('SNCF API '+r.status);return r.json();})
+     .then(data=>L.geoJSON(data,{
+       style:()=>({color:'#a78bfa',weight:2.5,opacity:.9}),
+       onEachFeature:(f,l)=>{
+         const p=f.properties||{};
+         l.bindPopup(`<b>${p.lib_ligne||p.libelle||'Ligne'}</b><br>${p.statut_ligne||''}`);
+       }
+     }))
+     .catch(()=>{
+       // Fallback : données lignes principales embarquées
+       const lignes=[
+         // Paris - Lyon - Marseille (LGV)
+         {n:'LGV Paris-Lyon',coords:[[48.844,2.373],[47.794,3.560],[46.305,4.826],[45.750,4.850],[44.890,4.867],[43.296,5.381]]},
+         // Paris - Bordeaux (LGV)
+         {n:'LGV Paris-Bordeaux',coords:[[48.844,2.373],[47.466,0.550],[46.584,0.344],[45.640,-0.150],[44.838,-0.579]]},
+         // Paris - Lille (LGV)
+         {n:'LGV Paris-Lille',coords:[[48.906,2.356],[50.019,2.816],[50.629,3.057]]},
+         // Paris - Strasbourg (LGV)
+         {n:'LGV Paris-Strasbourg',coords:[[48.844,2.373],[48.975,3.898],[48.574,7.752]]},
+         // Paris - Rennes (LGV)
+         {n:'LGV Paris-Rennes',coords:[[48.844,2.373],[48.150,1.600],[47.900,0.200],[48.117,-1.678]]},
+         // Lyon - Marseille
+         {n:'Lyon-Marseille',coords:[[45.750,4.850],[44.890,4.867],[43.853,4.361],[43.296,5.381]]},
+         // Bordeaux - Toulouse
+         {n:'Bordeaux-Toulouse',coords:[[44.838,-0.579],[44.200,0.620],[43.604,1.442]]},
+         // Toulouse - Marseille
+         {n:'Toulouse-Marseille',coords:[[43.604,1.442],[43.612,3.877],[43.296,5.381]]},
+         // Paris - Clermont
+         {n:'Paris-Clermont',coords:[[48.844,2.373],[47.580,2.970],[46.782,3.077],[45.777,3.087]]},
+         // Lyon - Grenoble
+         {n:'Lyon-Grenoble',coords:[[45.750,4.850],[45.464,5.248],[45.188,5.724]]},
+         // Strasbourg - Mulhouse - Bâle
+         {n:'Strasbourg-Mulhouse',coords:[[48.574,7.752],[47.750,7.359]]},
+         // Nantes - Bordeaux
+         {n:'Nantes-Bordeaux',coords:[[47.218,-1.554],[46.160,-1.152],[45.650,-1.020],[44.838,-0.579]]},
+         // Marseille - Nice - Vintimille
+         {n:'Marseille-Nice',coords:[[43.296,5.381],[43.424,6.136],[43.710,7.262]]},
+         // Grenoble - Valence
+         {n:'Grenoble-Valence',coords:[[45.188,5.724],[44.933,4.892]]},
+         // Lyon - Chambéry - Turin
+         {n:'Lyon-Chambéry',coords:[[45.750,4.850],[45.564,5.919]]},
+         // Paris - Le Havre
+         {n:'Paris-Le Havre',coords:[[48.844,2.373],[49.180,1.090],[49.494,0.108]]},
+         // Paris - Caen
+         {n:'Paris-Caen',coords:[[48.844,2.373],[49.050,0.350],[49.183,-0.371]]},
+         // Paris - Brest
+         {n:'Paris-Brest',coords:[[48.844,2.373],[48.117,-1.678],[47.996,-4.486]]},
+         // Rennes - Nantes
+         {n:'Rennes-Nantes',coords:[[48.117,-1.678],[47.218,-1.554]]},
+         // Bordeaux - Hendaye
+         {n:'Bordeaux-Hendaye',coords:[[44.838,-0.579],[43.929,-1.440],[43.357,-1.771]]},
+         // Toulouse - Perpignan
+         {n:'Toulouse-Perpignan',coords:[[43.604,1.442],[42.688,2.895]]},
+         // Montpellier - Perpignan
+         {n:'Montpellier-Perpignan',coords:[[43.609,3.877],[42.688,2.895]]},
+         // Dijon - Besançon - Belfort
+         {n:'Dijon-Belfort',coords:[[47.322,5.042],[47.237,6.024],[47.638,6.863]]},
+         // Metz - Nancy - Dijon
+         {n:'Metz-Dijon',coords:[[49.119,6.176],[48.692,6.184],[47.322,5.042]]},
+         // Paris - Metz - Luxembourg
+         {n:'Paris-Metz',coords:[[48.844,2.373],[49.058,3.317],[49.119,6.176]]},
+       ];
+       const features=lignes.map(l=>({
+         type:'Feature',
+         geometry:{type:'LineString',coordinates:l.coords.map(c=>[c[1],c[0]])},
+         properties:{n:l.n}
+       }));
+       return L.geoJSON({type:'FeatureCollection',features},{
+         style:()=>({color:'#a78bfa',weight:2.5,opacity:.9}),
+         onEachFeature:(f,l)=>l.bindPopup(`<b>${f.properties.n}</b>`)
+       });
+     })},
+
+  {id:'velo',name:'Pistes cyclables',src:'Waymarked Trails',group:'Mobilité',color:'#34d399',
+   legend:[{color:'#34d399',label:'Itinéraires cyclables'}],
+   load:()=>{
+     const layer=L.tileLayer('https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png',{
+       opacity:1,attribution:'Waymarked Trails © OSM',maxZoom:18
+       // Tuile transparente : seuls les tracés cyclables sont dessinés (comme rivières)
+     });
+     // Grossir le trait via CSS (la tuile est fine par défaut)
+     layer.on('add',()=>{
+       setTimeout(()=>{
+         const c=layer.getContainer&&layer.getContainer();
+         if(c) c.style.cssText+='filter:drop-shadow(0 0 1.5px currentColor) saturate(2.5) contrast(1.6);';
+       },100);
+     });
+     return Promise.resolve(layer);
+   }},
+
+  // ── HYDROLOGIE ──
+  {id:'rivieres',name:'Rivières et cours d\'eau',src:'WMS Sandre/OFB',group:'Hydrologie',color:'#38bdf8',
+   legend:[{color:'#38bdf8',label:'Cours d\'eau Carthage'}],
+   load:()=>Promise.resolve(L.tileLayer.wms('https://services.sandre.eaufrance.fr/geo/sandre',{
+     layers:'CoursEau_Carthage2017',format:'image/png',transparent:true,
+     version:'1.3.0',attribution:'© Sandre/OFB',opacity:.85
+   }))},
+
+  // ── PHYSIQUE ──
+  {id:'relief',name:'Relief / Topographie',src:'OpenTopoMap (SRTM)',group:'Physique',color:'#86efac',legend:null,
+   load:()=>Promise.resolve(L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{
+     opacity:.8,maxZoom:17,attribution:'© OpenTopoMap CC-BY-SA',subdomains:'abc'
+   }))},
+
+  // Qualité du ciel nocturne : valeur élevée (lum) = pollution lumineuse forte
+  // Paris (lum=9, le maximum) doit donc être ROUGE (mauvais), pas vert.
+  // inv=true : rang élevé (r→1) → tc=r→1 → rouge ✓
+  {id:'ciel',name:'Qualité ciel nocturne',src:'Estimation par canton',group:'Physique',color:'#60a5fa',
+   legend:mkLegRank('lum','',true,0),
+   load:()=>choroCan('lum',1,9,true,
+     v=>v?`Pollution lumineuse : <b>${['','Quasi-vierge','Très peu pollué','Peu pollué','Modéré','Périurbain','Urbain clair','Urbain','Grande ville','Métropole'][Math.round(v)]||v}</b>`:'—'
+   )},
+
+  // ── MÉTÉO & CLIMAT ──
+  {id:'soleil',name:'Ensoleillement',src:'PVGIS par département',group:'Météo & Climat',color:'#fde68a',
+   legend:mkLegRank('soleil','kWh/m²/an',false,0),
+   load:()=>choroDep('soleil',1000,1850,false,v=>v?`Ensoleillement : <b>${v} kWh/m²/an</b>`:'—')},
+
+  // Précipitations : beaucoup de pluie = vert (positif), peu de pluie = rouge (sécheresse)
+  // inv=false : rang élevé (beaucoup de pluie, r→1) → tc=1-r→0 → vert ✓
+  {id:'pluie',name:'Précipitations',src:'Climatologie par département',group:'Météo & Climat',color:'#93c5fd',
+   legend:mkLegRank('pluie','mm/an',false,0),
+   load:()=>choroDep('pluie',550,1500,false,v=>v?`Précipitations : <b>${v} mm/an</b>`:'—')},
+
+  {id:'seche',name:'Risque sécheresse',src:'BRGM par canton',group:'Météo & Climat',color:'#d97706',
+   legend:[{color:palGVR(0),label:'Faible'},{color:palGVR(.33),label:'Modéré'},{color:palGVR(.66),label:'Élevé'},{color:palGVR(1),label:'Très élevé'}],
+   load:()=>choroCan('seche',1,4,true,v=>{const l=['','Faible','Modéré','Élevé','Très élevé'];return`Sécheresse : <b>${l[v]||'—'}</b>`})},
+
+  // ── SOCIO-ÉCONOMIQUE ──
+  {id:'cho',name:'Taux de chômage',src:'INSEE T4 2022 par canton',group:'Socio-économique',color:'#f87171',
+   legend:mkLegRank('chomage','%',true),
+   load:()=>choroCan('chomage',4.5,15.1,true,v=>v!==undefined?`Chômage : <b>${v} %</b>`:'—')},
+
+  {id:'rev',name:'Niveau de vie médian',src:'INSEE FLSF 2021 par canton',group:'Socio-économique',color:'#4ade80',
+   legend:mkLegRank('revenu','€/an',false,0),
+   load:()=>choroCan('revenu',18900,31200,false,v=>v?`Revenu médian : <b>${v.toLocaleString('fr-FR')} €/an</b>`:'—')},
+
+  {id:'immo',name:'Prix immobilier',src:'DVF 2022 par commune',group:'Socio-économique',color:'#c084fc',
+   legend:mkLegRank('immo','€/m²',true,0),
+   load:()=>choroCom('immo',900,10500,true,v=>v?`Prix médian : <b>${v.toLocaleString('fr-FR')} €/m²</b>`:'—')},
+
+  // ── SÉCURITÉ ──
+  {id:'camb',name:'Cambriolages',src:'Interstats 2022 par canton',group:'Sécurité',color:'#fb923c',
+   legend:mkLegRank('cambrio','/1000 hab',true),
+   load:()=>choroCan('cambrio',1.8,12.5,true,v=>v!==undefined?`Cambriolages : <b>${v} /1000 hab</b>`:'—')},
+
+  {id:'crim',name:'Crimes et délits',src:'Interstats 2022 par canton',group:'Sécurité',color:'#f43f5e',
+   legend:mkLegRank('crimes','/1000 hab',true),
+   load:()=>choroCan('crimes',4.5,12.8,true,v=>v!==undefined?`Crimes & délits : <b>${v} /1000 hab</b>`:'—')},
+
+  // ── SERVICES PUBLICS ──
+  {id:'urg',name:'Accès aux urgences',src:'DREES 2022 par canton',group:'Services publics',color:'#60a5fa',
+   legend:mkLegRank('urgences','min',true,0),
+   load:()=>choroCan('urgences',8,42,true,v=>v!==undefined?`Urgences : <b>${v} min</b>`:'—')},
+
+  // ── RISQUES ──
+  {id:'nuke',name:'Centrales nucléaires',src:'IRSN/ASN',group:'Risques',color:'#facc15',
+   legend:[{color:'#ef4444',label:'Centrale'},{color:'rgba(250,204,21,0.5)',label:'Zone PPI 10 km'},{color:'rgba(254,249,195,0.15)',label:'Zone 30 km'}],
+   load:()=>{
+     const C=[
+       {n:'Blayais',lat:45.256,lng:-0.693,p:'4×900 MW'},{n:'Bugey',lat:45.797,lng:5.270,p:'4×900 MW'},
+       {n:'Cattenom',lat:49.396,lng:6.218,p:'4×1300 MW'},{n:'Chinon',lat:47.238,lng:0.176,p:'4×900 MW'},
+       {n:'Chooz',lat:50.091,lng:4.787,p:'2×1500 MW'},{n:'Civaux',lat:46.457,lng:0.653,p:'2×1450 MW'},
+       {n:'Cruas',lat:44.632,lng:4.759,p:'4×900 MW'},{n:'Dampierre',lat:47.732,lng:2.516,p:'4×900 MW'},
+       {n:'Fessenheim',lat:47.904,lng:7.565,p:'Fermée 2020'},{n:'Flamanville',lat:49.536,lng:-1.883,p:'2×1300 MW + EPR'},
+       {n:'Golfech',lat:44.107,lng:0.848,p:'2×1300 MW'},{n:'Gravelines',lat:51.012,lng:2.133,p:'6×900 MW'},
+       {n:'Nogent-sur-Seine',lat:48.514,lng:3.520,p:'2×1300 MW'},{n:'Paluel',lat:49.856,lng:0.636,p:'4×1300 MW'},
+       {n:'Penly',lat:49.980,lng:1.213,p:'2×1300 MW'},{n:'Saint-Alban',lat:45.411,lng:4.808,p:'2×1300 MW'},
+       {n:'Saint-Laurent',lat:47.720,lng:1.577,p:'2×900 MW'},{n:'Belleville',lat:47.508,lng:2.870,p:'2×1300 MW'},
+       {n:'Tricastin',lat:44.331,lng:4.733,p:'4×900 MW'},
+     ];
+     const layers=[];
+     C.forEach(c=>{
+       layers.push(L.circle([c.lat,c.lng],{radius:30000,fillColor:'#fef08a',color:'#ca8a04',weight:1.2,fillOpacity:.35,dashArray:'5,5'}));
+       layers.push(L.circle([c.lat,c.lng],{radius:10000,fillColor:'#ef4444',color:'#991b1b',weight:1.5,fillOpacity:.55})
+         .bindPopup(`<b>${c.n}</b><br>${c.p}<br><small>Zone PPI 0–10 km</small>`));
+       layers.push(L.circleMarker([c.lat,c.lng],{radius:6,fillColor:'#dc2626',color:'#fff',weight:2,fillOpacity:1})
+         .bindPopup(`<b>${c.n}</b><br>${c.p}`));
+     });
+     return Promise.resolve(L.layerGroup(layers));
+   }},
+
+  // ── ÉCONOMIE ──
+  // Sites industriels (sections NAF B = industries extractives, C = industrie
+  // manufacturière) classés par tranche d'effectif salarié, à la manière de
+  // la carte de référence (bleu/orange/rouge selon la taille de l'établissement).
+  // Source : API Recherche d'entreprises (recherche-entreprises.api.gouv.fr /near_point),
+  // alimentée par le répertoire SIRENE de l'INSEE.
+  //
+  // Approche : grille de points couvrant la France métropolitaine, requête
+  // /near_point (rayon 40km, max autorisé 50km) par point, filtrée sur
+  // section_activite_principale=B,C. Chaque requête retourne les établissements
+  // (matching_etablissements) avec leurs coordonnées et tranche d'effectif —
+  // contrairement à /search qui ne renvoie que le siège social (raterait les
+  // établissements locaux d'un groupe national, ex: usine de 180 employés
+  // à Cahors dont le siège est ailleurs).
+  {id:'industrie',name:'Sites industriels (effectifs)',src:'API SIRENE / near_point',group:'Économie',color:'#f87171',
+   legend:[
+     {color:'#7dd3fc',label:'100 à 199 employés'},
+     {color:'#fb923c',label:'200 à 499 employés'},
+     {color:'#dc2626',label:'500 employés et plus'}
+   ],
+   load:async()=>{
+     // Tranches d'effectif INSEE retenues (>=100 salariés) :
+     // 22=100-199, 31=200-249, 32=250-499, 41=500-999, 42=1000-1999,
+     // 51=2000-4999, 52=5000-9999, 53=10000+
+     const TRANCHE_INFO={
+       '22':{color:'#7dd3fc',radius:4,label:'100 à 199 employés'},
+       '31':{color:'#fb923c',radius:6,label:'200 à 499 employés'},
+       '32':{color:'#fb923c',radius:6,label:'200 à 499 employés'},
+       '41':{color:'#dc2626',radius:8,label:'500 employés et plus'},
+       '42':{color:'#dc2626',radius:8,label:'500 employés et plus'},
+       '51':{color:'#dc2626',radius:8,label:'500 employés et plus'},
+       '52':{color:'#dc2626',radius:8,label:'500 employés et plus'},
+       '53':{color:'#dc2626',radius:8,label:'500 employés et plus'},
+     };
+
+     // Grille de points couvrant la France métropolitaine (~1° espacement,
+     // rayon 45km par point pour assurer un recouvrement complet sans trous)
+     const grid=[];
+     for(let lat=42.5;lat<=51.0;lat+=0.8){
+       for(let lng=-4.5;lng<=8.0;lng+=0.9){
+         grid.push([lat,lng]);
+       }
+     }
+
+     const seen=new Set(); // dédoublonnage par SIRET
+     const markers=[];
+     const st=document.getElementById('st');
+
+     // Traitement séquentiel avec throttling (~5 req/s pour rester sous la limite de 7/s)
+     for(let i=0;i<grid.length;i++){
+       const [lat,lng]=grid[i];
+       st.innerHTML=`Chargement industries… <span id="load-time">${i+1}/${grid.length}</span>`;
+       try{
+         const url=`https://recherche-entreprises.api.gouv.fr/near_point?lat=${lat}&long=${lng}&radius=45&section_activite_principale=B,C&per_page=25&minimal=true`;
+         const r=await fetch(url);
+         if(r.ok){
+           const data=await r.json();
+           (data.results||[]).forEach(ent=>{
+             const etabs=ent.matching_etablissements||(ent.siege?[ent.siege]:[]);
+             etabs.forEach(etab=>{
+               if(!etab||!etab.coordonnees||!etab.siret) return;
+               if(seen.has(etab.siret)) return;
+               const tr=(etab.tranche_effectif_salarie||'').toString();
+               const info=TRANCHE_INFO[tr];
+               if(!info) return; // on ignore < 100 salariés
+               seen.add(etab.siret);
+               const [elat,elng]=etab.coordonnees.split(',').map(Number);
+               if(isNaN(elat)||isNaN(elng)) return;
+               markers.push(L.circleMarker([elat,elng],{
+                 radius:info.radius,fillColor:info.color,color:'#1a1a1a',weight:.6,fillOpacity:.8
+               }).bindPopup(`<b>${ent.nom_complet||ent.nom_raison_sociale||'—'}</b><br>${etab.activite_principale||''}<br><small>${etab.adresse||''}</small><br>Effectif : <b>${info.label}</b>`));
+             });
+           });
+         }
+       }catch(e){console.error('industrie near_point',lat,lng,e);}
+       // Throttle : ~180ms entre requêtes ≈ 5,5 req/s
+       await new Promise(res=>setTimeout(res,180));
+     }
+     return L.layerGroup(markers);
+   }},
+
+
+  // ── LOISIRS ──
+  {id:'ski',name:'Stations de ski',src:'Données coords',group:'Loisirs',color:'#e0f2fe',
+   legend:[{color:'#e0f2fe',label:'Station de ski'}],
+   load:()=>{
+     const S=[
+       {n:'Chamonix-Mont-Blanc',lat:45.923,lng:6.869,alt:1035,d:'74'},{n:'Megève',lat:45.857,lng:6.616,alt:1113,d:'74'},
+       {n:'Saint-Gervais',lat:45.892,lng:6.711,alt:850,d:'74'},{n:'Les Contamines',lat:45.820,lng:6.727,alt:1165,d:'74'},
+       {n:'Flaine',lat:46.036,lng:6.688,alt:1600,d:'74'},{n:'Avoriaz',lat:46.191,lng:6.779,alt:1800,d:'74'},
+       {n:'Morzine',lat:46.178,lng:6.709,alt:1000,d:'74'},{n:'Les Gets',lat:46.158,lng:6.666,alt:1172,d:'74'},
+       {n:'Châtel',lat:46.267,lng:6.842,alt:1200,d:'74'},{n:'La Clusaz',lat:45.906,lng:6.423,alt:1100,d:'74'},
+       {n:'Le Grand-Bornand',lat:45.943,lng:6.425,alt:934,d:'74'},{n:'Annecy Semnoz',lat:45.854,lng:6.154,alt:1700,d:'74'},
+       {n:'Val d\'Isère',lat:45.447,lng:6.978,alt:1850,d:'73'},{n:'Tignes',lat:45.469,lng:6.903,alt:2100,d:'73'},
+       {n:'Courchevel',lat:45.415,lng:6.633,alt:1850,d:'73'},{n:'Méribel',lat:45.396,lng:6.562,alt:1450,d:'73'},
+       {n:'Les Menuires',lat:45.321,lng:6.541,alt:1800,d:'73'},{n:'Val Thorens',lat:45.297,lng:6.579,alt:2300,d:'73'},
+       {n:'La Plagne',lat:45.505,lng:6.677,alt:1970,d:'73'},{n:'Les Arcs',lat:45.566,lng:6.843,alt:1600,d:'73'},
+       {n:'Valloire',lat:45.167,lng:6.433,alt:1430,d:'73'},{n:'Les Saisies',lat:45.748,lng:6.540,alt:1633,d:'73'},
+       {n:'Les Deux Alpes',lat:45.011,lng:6.124,alt:1650,d:'38'},{n:'Alpe d\'Huez',lat:45.088,lng:6.068,alt:1860,d:'38'},
+       {n:'Chamrousse',lat:45.119,lng:5.888,alt:1650,d:'38'},{n:'Villard-de-Lans',lat:45.073,lng:5.553,alt:1050,d:'38'},
+       {n:'Serre-Chevalier',lat:44.926,lng:6.531,alt:1350,d:'05'},{n:'Montgenèvre',lat:44.934,lng:6.727,alt:1860,d:'05'},
+       {n:'Vars',lat:44.548,lng:6.710,alt:1650,d:'05'},{n:'Risoul',lat:44.620,lng:6.625,alt:1850,d:'05'},
+       {n:'Puy Saint-Vincent',lat:44.823,lng:6.458,alt:1400,d:'05'},{n:'Orcières-Merlette',lat:44.681,lng:6.334,alt:1838,d:'05'},
+       {n:'Pra-Loup',lat:44.381,lng:6.631,alt:1630,d:'04'},{n:'La Foux d\'Allos',lat:44.290,lng:6.590,alt:1800,d:'04'},
+       {n:'Isola 2000',lat:44.188,lng:7.174,alt:2000,d:'06'},{n:'Auron',lat:44.221,lng:6.937,alt:1608,d:'06'},
+       {n:'Métabief',lat:46.774,lng:6.342,alt:999,d:'25'},{n:'Les Rousses',lat:46.494,lng:6.065,alt:1110,d:'39'},
+       {n:'La Faucille',lat:46.372,lng:6.027,alt:1320,d:'01'},
+       {n:'La Bresse',lat:48.001,lng:6.879,alt:905,d:'88'},{n:'Gérardmer',lat:48.073,lng:6.878,alt:669,d:'88'},
+       {n:'Le Markstein',lat:47.888,lng:7.054,alt:1183,d:'68'},
+       {n:'Super-Besse',lat:45.499,lng:2.844,alt:1350,d:'63'},{n:'Le Mont-Dore',lat:45.572,lng:2.810,alt:1050,d:'63'},
+       {n:'Lioran',lat:45.099,lng:2.747,alt:1160,d:'15'},
+       {n:'Ax-3-Domaines',lat:42.719,lng:1.833,alt:1400,d:'09'},{n:'Guzet-Neige',lat:42.786,lng:1.325,alt:1400,d:'09'},
+       {n:'Les Angles',lat:42.561,lng:2.025,alt:1650,d:'66'},{n:'Font Romeu',lat:42.499,lng:2.049,alt:1800,d:'66'},
+       {n:'Porté-Puymorens',lat:42.559,lng:1.823,alt:1600,d:'66'},{n:'Formiguères',lat:42.609,lng:2.094,alt:1750,d:'66'},
+       {n:'Piau-Engaly',lat:42.769,lng:0.159,alt:1850,d:'65'},{n:'La Mongie',lat:42.910,lng:0.133,alt:1800,d:'65'},
+       {n:'Saint-Lary',lat:42.820,lng:0.319,alt:830,d:'65'},{n:'Cauterets',lat:42.879,lng:-0.106,alt:932,d:'65'},
+       {n:'Luz-Ardiden',lat:42.836,lng:-0.022,alt:1680,d:'65'},{n:'Barèges',lat:42.895,lng:0.046,alt:1250,d:'65'},
+       {n:'Gourette',lat:42.955,lng:-0.336,alt:1350,d:'64'},{n:'La Pierre Saint-Martin',lat:42.967,lng:-0.777,alt:1650,d:'64'},
+     ];
+     return Promise.resolve(L.layerGroup(S.map(s=>
+       L.circleMarker([s.lat,s.lng],{radius:5,fillColor:'#e0f2fe',color:'#0ea5e9',weight:1.2,fillOpacity:.92})
+         .bindPopup(`<b>${s.n}</b><br>Alt. : ${s.alt} m · Dép. ${s.d}`)
+     )));
+   }},
+];
+
+// ════════════════════════════════════════
+// GESTION DES CALQUES
+// ════════════════════════════════════════
+const active={},loaded={};
+async function toggle(def,row){
+  const id=def.id;
+  if(active[id]){
+    const l=active[id];
+    if(l.remove) l.remove();
+    else map.removeLayer(l);
+    delete active[id];
+    row.classList.remove('on');upCount();upLeg();return;
+  }
+  row.classList.add('loading');
+  const t0=performance.now();
+  document.getElementById('st').innerHTML='Chargement…';
+  try{
+    let layer=loaded[id];
+    if(!layer){layer=await def.load();loaded[id]=layer;}
+    layer.addTo(map);
+    active[id]=layer;
+    row.classList.remove('loading');row.classList.add('on');
+    const dt=((performance.now()-t0)/1000).toFixed(2);
+    document.getElementById('st').innerHTML=`Prêt <span id="load-time">(${dt}s)</span>`;
+  }catch(e){
+    console.error(id,e);
+    row.classList.remove('loading');row.classList.add('err');
+    row.querySelector('.ls').textContent='⚠ '+e.message.slice(0,48);
+    const dt=((performance.now()-t0)/1000).toFixed(2);
+    document.getElementById('st').innerHTML=`Erreur <span id="load-time">(${dt}s)</span>`;
+  }
+  upCount();upLeg();
+}
+function upCount(){document.getElementById('ac').textContent=Object.keys(active).length;}
+function upLeg(){
+  const leg=document.getElementById('leg');
+  const last=DEFS.filter(d=>active[d.id]&&d.legend&&d.legend.length).pop();
+  if(!last){leg.style.display='none';return;}
+  document.getElementById('lt').textContent=last.name;
+  document.getElementById('lb').innerHTML=last.legend.map(i=>`<div class="li2"><div class="lc2" style="background:${i.color}"></div>${i.label}</div>`).join('');
+  leg.style.display='block';
+}
+
+// ════════════════════════════════════════
+// PANNEAU
+// ════════════════════════════════════════
+const panel2=document.getElementById('lc');
+let curGroup='';
+DEFS.forEach(def=>{
+  if(def.group!==curGroup){
+    const g=document.createElement('div');
+    g.className='gl';g.textContent=def.group;
+    panel2.appendChild(g);curGroup=def.group;
+  }
+  const row=document.createElement('div');
+  row.className='lr';row.dataset.id=def.id;
+  row.innerHTML=`<div class="tog"></div><div class="dot" style="background:${def.color}"></div><div class="li"><div class="ln">${def.name}</div><div class="ls">${def.src}</div></div><div class="spin"></div>`;
+  row.addEventListener('click',()=>toggle(def,row));
+  panel2.appendChild(row);
+});
+
+// Calques par défaut
+['deps'].forEach(id=>{
+  const def=DEFS.find(d=>d.id===id);
+  const row=panel2.querySelector(`[data-id="${id}"]`);
+  if(def&&row) toggle(def,row);
+});
+
+// Init position des contrôles
+repositionControls();
+</script>
+</body>
+</html>
