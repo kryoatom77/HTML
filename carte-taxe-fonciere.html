@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadastre fiscal — estimation de taxe foncière</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#EFE8D8;
+    --paper-dark:#E2D8BE;
+    --ink:#24291F;
+    --line:#B8AD8F;
+    --accent:#8B3A2B;
+    --navy:#2F4858;
+    --ok:#3E5C3A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans',sans-serif;
+    background-image:
+      linear-gradient(var(--paper-dark) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper-dark) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  header{
+    padding:18px 24px 10px;
+    border-bottom:2px solid var(--ink);
+  }
+  header h1{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:1.6rem;
+    margin:0 0 2px;
+    letter-spacing:.2px;
+  }
+  header .sub{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:.78rem;
+    color:var(--navy);
+    text-transform:uppercase;
+    letter-spacing:1px;
+  }
+  main{
+    display:grid;
+    grid-template-columns:340px 1fr;
+    gap:0;
+    min-height:calc(100vh - 76px);
+  }
+  @media (max-width:800px){ main{grid-template-columns:1fr;} }
+
+  .fiche{
+    border-right:2px solid var(--ink);
+    padding:20px;
+    background:rgba(239,232,216,.6);
+  }
+  .fiche h2{
+    font-family:'Fraunces',serif;
+    font-size:1rem;
+    margin:0 0 12px;
+    border-bottom:1px dashed var(--line);
+    padding-bottom:6px;
+  }
+  label{
+    display:block;
+    font-size:.78rem;
+    font-family:'IBM Plex Mono',monospace;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+    color:var(--navy);
+    margin-bottom:4px;
+  }
+  .field{margin-bottom:16px;}
+  .field .help{
+    font-size:.75rem;
+    color:#555;
+    margin-top:4px;
+    line-height:1.3;
+  }
+  input[type=number], input[type=text]{
+    width:100%;
+    padding:8px 10px;
+    border:1px solid var(--ink);
+    background:#fdfbf5;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:.95rem;
+    color:var(--ink);
+  }
+  input:focus{outline:2px solid var(--accent);}
+  #suggestions{
+    border:1px solid var(--line);
+    background:#fdfbf5;
+    max-height:160px;
+    overflow-y:auto;
+    display:none;
+  }
+  #suggestions div{
+    padding:6px 10px;
+    font-size:.85rem;
+    cursor:pointer;
+    border-bottom:1px solid var(--paper-dark);
+  }
+  #suggestions div:hover{background:var(--paper-dark);}
+
+  .stamp-zone{
+    margin-top:20px;
+    min-height:180px;
+    border:1px dashed var(--line);
+    padding:16px;
+    position:relative;
+  }
+  .stamp{
+    display:none;
+    text-align:center;
+  }
+  .stamp.show{display:block;}
+  .stamp .ring{
+    display:inline-block;
+    border:3px solid var(--accent);
+    border-radius:50%;
+    color:var(--accent);
+    padding:14px 10px;
+    transform:rotate(-6deg);
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    line-height:1.1;
+  }
+  .stamp .ring .amount{font-size:1.5rem;display:block;}
+  .stamp .ring .label{font-size:.6rem;text-transform:uppercase;letter-spacing:1.5px;}
+  .stamp .detail{
+    margin-top:12px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:.78rem;
+    text-align:left;
+    line-height:1.6;
+  }
+  .stamp .detail b{color:var(--ink);}
+  .placeholder-text{
+    font-size:.8rem;
+    color:#777;
+    font-style:italic;
+  }
+  .note{
+    margin-top:16px;
+    font-size:.72rem;
+    color:#666;
+    line-height:1.4;
+    border-top:1px dashed var(--line);
+    padding-top:10px;
+  }
+
+  #map{
+    height:calc(100vh - 76px);
+    min-height:420px;
+    filter:sepia(8%) saturate(85%);
+  }
+  .leaflet-tooltip.dept-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:.72rem;
+    background:rgba(253,251,245,.9);
+    border:1px solid var(--ink);
+    border-radius:0;
+  }
+  .status{
+    position:absolute;
+    z-index:1000;
+    top:90px; left:calc(340px + 12px);
+    background:rgba(253,251,245,.92);
+    border:1px solid var(--ink);
+    padding:6px 10px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:.72rem;
+    max-width:280px;
+  }
+  @media (max-width:800px){ .status{left:12px; top:12px;} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Cadastre fiscal — estimation de taxe foncière</h1>
+  <div class="sub">Base légale du calcul : Base d'imposition nette × taux communal global de taxe foncière bâtie (source DGFiP)</div>
+</header>
+
+<main>
+  <div class="fiche">
+    <h2>Fiche du bien</h2>
+
+    <div class="field">
+      <label for="base">Base d'imposition nette (€/an)</label>
+      <input type="number" id="base" placeholder="ex. 3200" min="0" step="10">
+      <div class="help">C'est la « base d'imposition » indiquée sur votre avis de taxe foncière (valeur locative cadastrale, déjà réduite de l'abattement de 50 %). Sans avis sous la main, une valeur locative brute annuelle divisée par deux donne un ordre de grandeur.</div>
+    </div>
+
+    <div class="field">
+      <label for="communeSearch">Commune (optionnel, plus précis)</label>
+      <input type="text" id="communeSearch" placeholder="Tapez un nom de commune…" autocomplete="off">
+      <div id="suggestions"></div>
+      <div class="help">Sans sélection de commune, cliquez directement un département sur la carte pour une estimation moyenne (calculée sur un échantillon de communes du département).</div>
+    </div>
+
+    <div class="stamp-zone">
+      <div id="placeholder" class="placeholder-text">Renseignez la base d'imposition, puis cliquez un département ou choisissez une commune pour estimer l'impôt.</div>
+      <div class="stamp" id="stamp">
+        <div class="ring">
+          <span class="amount" id="amountText">— €</span>
+          <span class="label">estimation / an</span>
+        </div>
+        <div class="detail" id="detailText"></div>
+      </div>
+    </div>
+
+    <div class="note">
+      Données de taux : dataset DGFiP « Fiscalité locale des particuliers » (data.economie.gouv.fr). Le taux global agrège commune + intercommunalité + syndicats + taxes annexes (GEMAPI, TSE). Estimation indicative, non contractuelle — l'avis d'imposition officiel fait foi.
+    </div>
+  </div>
+
+  <div style="position:relative;">
+    <div class="status" id="status">Cliquez un département pour charger son taux moyen.</div>
+    <div id="map"></div>
+  </div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const ODS_BASE = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/fiscalite-locale-des-particuliers/records";
+const GEOJSON_URL = "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements.geojson";
+const GEO_API = "https://geo.api.gouv.fr/communes";
+
+let fieldMap = null; // detected ODS field names
+const statusEl = document.getElementById('status');
+const baseInput = document.getElementById('base');
+
+function setStatus(msg){ statusEl.textContent = msg; }
+
+// --- 1. Detect real field names from the live dataset (schema not hardcoded, avoids guessing wrong) ---
+async function detectFields(){
+  try{
+    const res = await fetch(`${ODS_BASE}?limit=1`);
+    const data = await res.json();
+    const rec = data.results && data.results[0];
+    if(!rec) throw new Error("dataset vide");
+    const keys = Object.keys(rec);
+    const find = (re) => keys.find(k => re.test(k));
+    fieldMap = {
+      communeCode: find(/^(codgeo|com_code|code_com|insee|code_insee)/i) || find(/commune.*code|code.*commune/i),
+      communeName: find(/^(libgeo|com_nom|nom_com|nom_commune)/i) || find(/nom/i),
+      deptCode: find(/^(dep_code|code_dep|codedep|dep)/i),
+      tfb: find(/tfb/i) || find(/foncier.*bati/i) || find(/fonci.*b[aâ]ti/i),
+      year: find(/^ann|annee|year/i)
+    };
+    console.log("Champs ODS détectés :", fieldMap);
+    if(!fieldMap.tfb) setStatus("⚠ Taux TFB introuvable dans le schéma — voir console.");
+    return true;
+  }catch(e){
+    console.error(e);
+    setStatus("⚠ Impossible d'interroger data.economie.gouv.fr (réseau ou schéma).");
+    return false;
+  }
+}
+
+// where clause: try quoted string, fallback to unquoted numeric
+async function queryByField(field, value, limit){
+  const attempts = [`${field}="${value}"`, `${field}=${value}`];
+  for(const clause of attempts){
+    try{
+      const url = `${ODS_BASE}?where=${encodeURIComponent(clause)}&limit=${limit}`;
+      const res = await fetch(url);
+      if(!res.ok) continue;
+      const data = await res.json();
+      if(data.results && data.results.length) return data.results;
+    }catch(e){ /* try next */ }
+  }
+  return [];
+}
+
+function avgTaux(records){
+  const vals = records
+    .map(r => parseFloat(r[fieldMap.tfb]))
+    .filter(v => !isNaN(v));
+  if(!vals.length) return null;
+  return vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+
+function showResult(taux, label, isAverage){
+  const base = parseFloat(baseInput.value);
+  document.getElementById('placeholder').style.display = 'none';
+  const stamp = document.getElementById('stamp');
+  stamp.classList.add('show');
+  if(isNaN(base) || base <= 0){
+    document.getElementById('amountText').textContent = "?";
+    document.getElementById('detailText').innerHTML =
+      `<b>Base d'imposition manquante.</b> Renseignez-la à gauche pour obtenir un montant.<br>Taux global TFB — ${label} : <b>${taux.toFixed(2)} %</b>${isAverage ? ' (moyenne d\'échantillon)' : ''}`;
+    return;
+  }
+  const impot = base * taux / 100;
+  document.getElementById('amountText').textContent = impot.toLocaleString('fr-FR', {maximumFractionDigits:0}) + " €";
+  document.getElementById('detailText').innerHTML =
+    `<b>Zone :</b> ${label}<br><b>Taux global TFB :</b> ${taux.toFixed(2)} %${isAverage ? ' (moyenne d\'échantillon, non exhaustive)' : ''}<br><b>Base d'imposition :</b> ${base.toLocaleString('fr-FR')} €<br><b>Calcul :</b> ${base.toLocaleString('fr-FR')} × ${taux.toFixed(2)} %`;
+}
+
+// --- 2. Map ---
+const map = L.map('map').setView([46.6, 2.4], 6);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap, &copy; CARTO'
+}).addTo(map);
+
+let deptLayer = null;
+
+function colorFor(taux){
+  if(taux == null) return '#cfc6ab';
+  const t = Math.max(0, Math.min(1, (taux - 10) / 60)); // scale ~10%–70%
+  const r = Math.round(139 + (200-139)*0);
+  // interpolate paper -> accent
+  const c1 = [207,198,171], c2 = [139,58,43];
+  const rgb = c1.map((v,i)=>Math.round(v + (c2[i]-v)*t));
+  return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+}
+
+async function onDeptClick(feature, layer){
+  const code = feature.properties.code;
+  const nom = feature.properties.nom;
+  setStatus(`Chargement du taux moyen — ${nom}…`);
+  if(!fieldMap || !fieldMap.deptCode || !fieldMap.tfb){
+    setStatus("⚠ Schéma de données non résolu, impossible de requêter.");
+    return;
+  }
+  const records = await queryByField(fieldMap.deptCode, code, 100);
+  const taux = avgTaux(records);
+  if(taux == null){
+    setStatus(`Aucun taux trouvé pour ${nom} (${code}).`);
+    return;
+  }
+  layer.setStyle({fillColor: colorFor(taux), fillOpacity:.75});
+  setStatus(`${nom} (${code}) — taux moyen TFB : ${taux.toFixed(2)} % (échantillon ${records.length} communes)`);
+  showResult(taux, `${nom} (moyenne départementale)`, true);
+}
+
+fetch(GEOJSON_URL).then(r=>r.json()).then(geo=>{
+  deptLayer = L.geoJSON(geo, {
+    style: { color:'#24291F', weight:1, fillColor:'#cfc6ab', fillOpacity:.45 },
+    onEachFeature: (feature, layer) => {
+      layer.bindTooltip(feature.properties.nom, {className:'dept-label', sticky:true});
+      layer.on('click', () => onDeptClick(feature, layer));
+      layer.on('mouseover', () => layer.setStyle({weight:2}));
+      layer.on('mouseout', () => layer.setStyle({weight:1}));
+    }
+  }).addTo(map);
+}).catch(()=> setStatus("⚠ Impossible de charger les contours des départements."));
+
+// --- 3. Commune search (precise lookup via geo.api.gouv.fr + ODS by commune code) ---
+const searchInput = document.getElementById('communeSearch');
+const suggestBox = document.getElementById('suggestions');
+let searchTimer = null;
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  const q = searchInput.value.trim();
+  if(q.length < 2){ suggestBox.style.display='none'; return; }
+  searchTimer = setTimeout(async () => {
+    try{
+      const res = await fetch(`${GEO_API}?nom=${encodeURIComponent(q)}&fields=nom,code,codeDepartement,centre&boost=population&limit=8`);
+      const list = await res.json();
+      suggestBox.innerHTML = '';
+      if(!list.length){ suggestBox.style.display='none'; return; }
+      list.forEach(c => {
+        const div = document.createElement('div');
+        div.textContent = `${c.nom} (${c.codeDepartement})`;
+        div.onclick = () => selectCommune(c);
+        suggestBox.appendChild(div);
+      });
+      suggestBox.style.display = 'block';
+    }catch(e){ console.error(e); }
+  }, 300);
+});
+
+async function selectCommune(c){
+  searchInput.value = `${c.nom} (${c.codeDepartement})`;
+  suggestBox.style.display = 'none';
+  if(c.centre && c.centre.coordinates){
+    map.setView([c.centre.coordinates[1], c.centre.coordinates[0]], 11);
+  }
+  setStatus(`Recherche du taux pour ${c.nom}…`);
+  if(!fieldMap || !fieldMap.communeCode || !fieldMap.tfb){
+    setStatus("⚠ Schéma de données non résolu.");
+    return;
+  }
+  const records = await queryByField(fieldMap.communeCode, c.code, 1);
+  if(!records.length){
+    setStatus(`Aucune donnée de taux pour ${c.nom} (${c.code}).`);
+    return;
+  }
+  const taux = parseFloat(records[0][fieldMap.tfb]);
+  if(isNaN(taux)){
+    setStatus(`Taux illisible pour ${c.nom}.`);
+    return;
+  }
+  setStatus(`${c.nom} (${c.code}) — taux TFB : ${taux.toFixed(2)} %`);
+  showResult(taux, c.nom, false);
+}
+
+document.addEventListener('click', (e) => {
+  if(!suggestBox.contains(e.target) && e.target !== searchInput) suggestBox.style.display='none';
+});
+
+detectFields();
+</script>
+</body>
+</html>
