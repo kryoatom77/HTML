@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Planificateur de repas</title>
+<style>
+:root{--bg:#f7f7f3;--card:#fff;--ink:#17221c;--muted:#68736d;--accent:#176b4b;--accent2:#dff0e7;--line:#dfe5e1;--shadow:0 10px 30px #14251b12}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+.app{max-width:1050px;margin:auto;min-height:100vh;padding:24px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.logo{font-weight:800;font-size:20px}.logo span{color:var(--accent)}
+.progress{height:7px;background:#e5e9e6;border-radius:99px;overflow:hidden;flex:1;max-width:360px;margin-left:20px}.bar{height:100%;background:var(--accent);width:14%;transition:.35s}
+.screen{display:none}.screen.active{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:30px;box-shadow:var(--shadow)}
+.center{max-width:680px;margin:7vh auto;text-align:center}.center h1{font-size:42px;line-height:1.05;margin:0 0 12px}.center p{color:var(--muted);font-size:17px}
+h2{font-size:30px;margin:0 0 8px}h3{margin:0 0 8px}.sub{color:var(--muted);margin:0 0 24px}
+.options{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.option{border:1.5px solid var(--line);border-radius:16px;padding:17px;text-align:left;background:white;cursor:pointer;transition:.2s}.option:hover{transform:translateY(-2px);border-color:#9bb9aa}.option.selected{border-color:var(--accent);background:var(--accent2);box-shadow:inset 0 0 0 1px var(--accent)}.option b{display:block;margin-bottom:4px}.option small{color:var(--muted)}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}.btn{border:0;border-radius:13px;padding:13px 21px;font-weight:750;cursor:pointer;font-size:15px}.primary{background:var(--accent);color:white}.secondary{background:#edf1ee;color:var(--ink)}.btn:disabled{opacity:.4;cursor:not-allowed}
+.dashboard{display:grid;grid-template-columns:1.5fr 1fr;gap:18px}.meal{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}.meal:last-child{border-bottom:0}.thumb{width:74px;height:74px;border-radius:15px;display:grid;place-items:center;background:#eef4ef;font-size:31px}.meal .meta{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}.meal p{margin:3px 0;font-weight:750}.tag{display:inline-block;background:#edf5ef;color:#256047;border-radius:99px;padding:4px 8px;font-size:11px;margin-top:4px}
+.sidebox{background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px}.sidebox ul{padding-left:20px;color:#445149}.sidebox li{margin:9px 0}.total{font-size:27px;font-weight:800;margin:10px 0}
+.recipe{display:grid;grid-template-columns:1fr 1fr;gap:18px}.recipe-card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:20px}.recipe-card .big{font-size:52px}.recipe-card ul{padding-left:20px}.recipe-card li{margin:6px 0}
+.tabs{display:flex;gap:8px;overflow:auto;margin:18px 0}.tab{border:0;background:#e9eeeb;border-radius:99px;padding:10px 15px;cursor:pointer;white-space:nowrap}.tab.active{background:var(--accent);color:white}
+.list{background:#fff;border:1px solid var(--line);border-radius:20px;padding:20px}.item{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}.item:last-child{border-bottom:0}.item input{width:19px;height:19px;accent-color:var(--accent)}.item.done span{text-decoration:line-through;color:#9aa29d}
+.note{background:#f0f6f2;border-radius:14px;padding:13px 15px;color:#395246;margin-top:15px}
+@media(max-width:720px){.app{padding:14px}.card{padding:20px}.center h1{font-size:33px}.options,.dashboard,.recipe{grid-template-columns:1fr}.progress{max-width:150px}.actions{justify-content:stretch}.actions .btn{flex:1}}
+</style>
+</head>
+<body>
+<div class="app">
+<header><div class="logo">meal<span>plan</span></div><div class="progress"><div class="bar" id="bar"></div></div></header>
+
+<section class="screen active" id="s1"><div class="card"><h2>vous êtes combien ?</h2><p class="sub">pour combien de personnes faut-il prévoir les repas ?</p>
+<div class="options" data-group="people">
+<div class="option" data-value="1"><b>1 personne</b><small>repas individuels</small></div><div class="option" data-value="2"><b>2 personnes</b><small>pour un couple</small></div>
+<div class="option" data-value="3"><b>3 personnes</b><small>petite famille</small></div><div class="option" data-value="4"><b>4 personnes</b><small>famille</small></div></div>
+<div class="actions"><button class="btn primary next">continuer</button></div></div></section>
+
+<section class="screen" id="s2"><div class="card"><h2>quelle ambiance ?</h2><p class="sub">quel style de cuisine te fait envie cette semaine ?</p>
+<div class="options" data-group="style">
+<div class="option" data-value="familiale"><b>🍲 familiale</b><small>simple, généreuse et réconfortante</small></div>
+<div class="option" data-value="rapide"><b>⚡ rapide</b><small>peu de préparation et peu de vaisselle</small></div>
+<div class="option" data-value="healthy"><b>🥗 équilibrée</b><small>légère, riche en légumes et protéines</small></div>
+<div class="option" data-value="gourmande"><b>🍝 gourmande</b><small>des plats qui ne plaisantent pas avec le plaisir</small></div>
+</div><div class="actions"><button class="btn secondary back">retour</button><button class="btn primary next">continuer</button></div></div></section>
+
+<section class="screen" id="s3"><div class="card"><h2>régime ou allergies ?</h2><p class="sub">plusieurs choix possibles.</p>
+<div class="options" data-multi="1">
+<div class="option" data-value="none"><b>✓ aucune</b><small>pas de restriction</small></div>
+<div class="option" data-value="vegetarien"><b>🥬 végétarien</b><small>sans viande ni poisson</small></div>
+<div class="option" data-value="sanslactose"><b>🥛 sans lactose</b><small>éviter les produits laitiers classiques</small></div>
+<div class="option" data-value="sansgluten"><b>🌾 sans gluten</b><small>éviter blé, seigle et orge</small></div>
+</div><div class="actions"><button class="btn secondary back">retour</button><button class="btn primary next">continuer</button></div></div></section>
+
+<section class="screen" id="s4"><div class="card"><h2>tu cuisines combien de fois ?</h2><p class="sub">on optimise les restes et la préparation.</p>
+<div class="options" data-group="cook">
+<div class="option" data-value="3"><b>3 fois</b><small>maximum d'optimisation</small></div>
+<div class="option" data-value="5"><b>5 fois</b><small>bon compromis</small></div>
+<div class="option" data-value="7"><b>7 fois</b><small>un plat différent chaque jour</small></div>
+<div class="option" data-value="mix"><b>je m'adapte</b><small>tu me laisses décider</small></div>
+</div><div class="actions"><button class="btn secondary back">retour</button><button class="btn primary" onclick="generate()">générer mon programme</button></div></div></section>
+
+<section class="screen" id="s5"><div class="dashboard">
+<div class="card"><h2>ton programme</h2><p class="sub">7 repas optimisés pour ta semaine.</p><div id="meals"></div></div>
+<div><div class="sidebox"><h3>préparation</h3><p>une session de préparation pour gagner du temps pendant la semaine.</p><ul><li>cuire les féculents à l'avance</li><li>préparer les légumes</li><li>portionner les protéines</li><li>préparer 2 sauces de base</li></ul><button class="btn primary" onclick="show(6)">voir les recettes</button></div>
+<div class="sidebox" style="margin-top:18px"><h3>budget estimé</h3><div class="total" id="budget">-- €</div><small>estimation indicative selon les quantités.</small></div></div>
+</div></section>
+
+<section class="screen" id="s6"><div class="card"><h2>recettes</h2><p class="sub">les détails de préparation, sans roman de 14 pages.</p><div class="recipe" id="recipes"></div><div class="actions"><button class="btn secondary" onclick="show(5)">retour</button><button class="btn primary" onclick="show(7)">liste de courses</button></div></div></section>
+
+<section class="screen" id="s7"><div class="card"><h2>liste de courses</h2><p class="sub">coche les produits au fur et à mesure.</p><div class="list" id="shopping"></div><div class="note">astuce : les quantités sont regroupées pour éviter d'acheter trois fois la même chose. parce que faire 3 tours au supermarché pour 2 tomates est un concept discutable.</div><div class="actions"><button class="btn secondary" onclick="show(6)">retour</button><button class="btn primary" onclick="window.print()">imprimer</button></div></div></section>
+</div>
+
+<script>
+let step=1, answers={people:2,style:'healthy',restrictions:['none'],cook:'5'};
+const meals=[
+['Lundi','Bowl poulet, riz, crudités','🍗'],['Mardi','Pâtes crémeuses aux légumes','🍝'],['Mercredi','Chili de bœuf et haricots rouges','🌶️'],['Jeudi','Saumon rôti, pommes de terre et brocoli','🐟'],['Vendredi','Wraps poulet, avocat et crudités','🌯'],['Samedi','Curry de pois chiches et riz','🥘'],['Dimanche','Boulettes de lentilles, feta et légumes','🥗']];
+const ingredients=[
+['Poulet','600 g'],['Riz','500 g'],['Pâtes','300 g'],['Bœuf haché','400 g'],['Haricots rouges','1 boîte'],['Saumon','2 pavés'],['Pommes de terre','1 kg'],['Brocoli','2 têtes'],['Avocats','2'],['Lentilles','250 g'],['Pois chiches','2 boîtes'],['Tomates concassées','3 boîtes'],['Oignons','4'],['Carottes','5'],['Citron','3'],['Feta','200 g']];
+function show(n){document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));document.getElementById('s'+n).classList.add('active');step=n;document.getElementById('bar').style.width=Math.min(100,Math.max(12,n*14.3))+'%';window.scrollTo(0,0)}
+function next(){show(step+1)}
+document.querySelectorAll('.options').forEach(group=>{
+ group.addEventListener('click',e=>{let o=e.target.closest('.option');if(!o)return;
+ if(group.dataset.multi){o.classList.toggle('selected'); if(o.dataset.value==='none'&&o.classList.contains('selected')){group.querySelectorAll('.option').forEach(x=>{if(x!==o)x.classList.remove('selected')})}else if(o.dataset.value!=='none'){let n=group.querySelector('[data-value=none]');if(n)n.classList.remove('selected')}}
+ else{group.querySelectorAll('.option').forEach(x=>x.classList.remove('selected'));o.classList.add('selected')}
+ answers[group.dataset.group||'restrictions']=group.dataset.multi?[...group.querySelectorAll('.selected')].map(x=>x.dataset.value):o.dataset.value;
+ })})
+document.querySelectorAll('.next').forEach(b=>b.onclick=()=>next());
+document.querySelectorAll('.back').forEach(b=>b.onclick=()=>show(step-1));
+function generate(){
+ let people=Number(answers.people||2), factor=people/2;
+ document.getElementById('meals').innerHTML=meals.map(m=>`<div class="meal"><div class="thumb">${m[2]}</div><div><div class="meta">${m[0]}</div><p>${m[1]}</p><span class="tag">${people} pers.</span></div></div>`).join('');
+ document.getElementById('budget').textContent=(42*factor+12).toFixed(0)+' €';
+ document.getElementById('recipes').innerHTML=meals.slice(0,6).map((m,i)=>`<div class="recipe-card"><div class="big">${m[2]}</div><h3>${m[1]}</h3><p><b>${20+i*5} min</b> · ${2+Math.floor(i/2)} étapes</p><ul><li>préparer les ingrédients</li><li>cuire et assaisonner</li><li>dresser puis servir</li></ul></div>`).join('');
+ document.getElementById('shopping').innerHTML=ingredients.map((x,i)=>`<label class="item"><input type="checkbox"><span>${x[0]} <small style="color:#7a847e">— ${x[1]}</small></span></label>`).join('');
+ document.querySelectorAll('#shopping input').forEach(c=>c.onchange=()=>c.parentElement.classList.toggle('done',c.checked));
+ show(5);
+}
+</script>
+</body>
+</html>
