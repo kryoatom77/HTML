@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SunCast - ombres solaires 3D</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.1/dist/maplibre-gl.css">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font:12px system-ui,Arial,sans-serif;color:#1b2733}
+#map{position:absolute;inset:0}
+#p{position:absolute;z-index:5;top:10px;left:10px;width:270px;max-width:calc(100% - 70px);background:#fffffff0;border-radius:10px;box-shadow:0 4px 18px #0006;padding:8px;display:flex;flex-direction:column;gap:6px}
+.r{display:flex;gap:5px}
+.s{display:grid;grid-template-columns:34px 1fr 54px;align-items:center;gap:6px}
+.s b{text-align:right;font-variant-numeric:tabular-nums}
+input,button{font:inherit;padding:5px 7px;border:1px solid #b9c2cc;border-radius:6px;background:#fff;min-width:0}
+input[type=range]{padding:0;margin:0;width:100%;accent-color:#f08a00}
+#q{flex:1}
+#sg{position:absolute;top:42px;left:8px;right:8px;background:#fff;border-radius:6px;box-shadow:0 4px 14px #0005;z-index:6;display:none;max-height:240px;overflow:auto}
+#sg div{padding:7px 9px;cursor:pointer;border-bottom:1px solid #eef1f4}
+#sg div:hover{background:#fff1de}
+button{cursor:pointer;background:#f08a00;border-color:#f08a00;color:#fff;font-weight:600}
+#g{height:6px;background:#e3e8ee;border-radius:3px;overflow:hidden;opacity:0;transition:opacity .4s}
+#gi{display:block;height:100%;width:0;background:repeating-linear-gradient(45deg,#f08a00 0 8px,#ffb347 8px 16px);background-size:22px 22px;animation:mv .6s linear infinite;transition:width .25s}
+@keyframes mv{to{background-position:22px 0}}
+#st{font-size:11px;color:#556;min-height:14px}
+#co{position:absolute;z-index:4;left:10px;bottom:10px;background:#000a;color:#fff;padding:3px 7px;border-radius:5px;font-size:11px;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="p">
+ <div class="r"><input id="q" placeholder="Ville ou code postal" autocomplete="off"><button id="go">OK</button><button id="gps">GPS</button></div>
+ <div id="sg"></div>
+ <div class="s"><span>Date</span><input type="range" id="date" min="1" max="365" step="1"><b id="dv"></b></div>
+ <div class="s"><span>Heure</span><input type="range" id="time" min="0" max="1435" step="5"><b id="tv"></b></div>
+ <div id="g"><i id="gi"></i></div>
+ <div id="st">Initialisation...</div>
+</div>
+<div id="co">© Kryo ATOM 2026</div>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+<script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id),R=Math.PI/180,say=t=>$('st').textContent=t,pad=n=>String(n).padStart(2,'0');
+const MO=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'],hh=m=>pad(Math.floor(m/60))+':'+pad(m%60);
+if(!window.maplibregl){say('MapLibre ne se charge pas : vérifie la connexion internet.');return;}
+const PC=window.polygonClipping,C0=[1.4442,44.447],RE=6378137,HALF=600,N=640,
+ SRV=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter','https://overpass.private.coffee/api/interpreter'],
+ WMS='https://data.geopf.fr/wms-r/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=IGNF_LIDAR-HD_MNH_ELEVATION.ELEVATIONGRIDCOVERAGE.LAMB93&FORMAT=image/geotiff&CRS=EPSG:3857&WIDTH='+N+'&HEIGHT='+N,
+ ll2m=(lng,lat)=>[lng*R*RE,Math.log(Math.tan(Math.PI/4+lat*R/2))*RE],
+ m2ll=(x,y)=>[x/RE/R,(2*Math.atan(Math.exp(y/RE))-Math.PI/2)/R];
+let map,ready=false,sun={el:0,az:0},tr=new Map(),boxT=[],tBuild,tShadow=0,lid=null,lidBusy=false,lidFail=false;
+
+/* ---------- jauge de chargement ---------- */
+const tk=new Map();let tkId=0,gOff=0;
+function tstart(label,tau){const id=++tkId;tk.set(id,{label,t0:performance.now(),tau,done:false});gauge();return id;}
+function tend(id){const t=tk.get(id);if(t)t.done=true;gauge();}
+function gauge(){
+ const now=performance.now();let s=0,act=[];
+ for(const t of tk.values()){if(t.done)s+=1;else{s+=.92*(1-Math.exp(-(now-t.t0)/t.tau));act.push(t.label);}}
+ if(!tk.size){$('g').style.opacity=0;return;}
+ $('g').style.opacity=1;$('gi').style.width=(100*s/tk.size)+'%';
+ if(act.length){clearTimeout(gOff);gOff=0;say('Chargement : '+act.join(', ')+'...');}
+ else if(!gOff)gOff=setTimeout(()=>{gOff=0;if([...tk.values()].every(t=>t.done)){tk.clear();gauge();}},700);
+}
+setInterval(gauge,150);
+
+/* ---------- date / heure : 1er janvier -> 31 décembre, 00:00 -> 23:55 ---------- */
+const now=new Date(),yr=now.getFullYear(),nd=(yr%4===0&&yr%100!==0)||yr%400===0?366:365,D=$('date'),T=$('time');
+D.max=nd;D.value=Math.round((Date.UTC(yr,now.getMonth(),now.getDate())-Date.UTC(yr,0,0))/864e5);
+T.value=Math.min(1435,Math.round((now.getHours()*60+now.getMinutes())/5)*5);
+function when(){const d=new Date(yr,0,+D.value),t=+T.value;d.setHours(Math.floor(t/60),t%60,0,0);return d;}
+
+function sunPos(date,lat,lng){
+ const d=date.getTime()/864e5-10957.5,M=R*(357.5291+.98560028*d),
+ L=M+R*(1.9148*Math.sin(M)+.02*Math.sin(2*M)+3e-4*Math.sin(3*M))+R*102.9372+Math.PI,e=R*23.4397,
+ dec=Math.asin(Math.sin(e)*Math.sin(L)),ra=Math.atan2(Math.sin(L)*Math.cos(e),Math.cos(L)),
+ H=R*(280.16+360.9856235*d)+R*lng-ra,phi=lat*R;
+ return{el:Math.asin(Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.cos(H))/R,
+  az:(Math.atan2(Math.sin(H),Math.cos(H)*Math.sin(phi)-Math.tan(dec)*Math.cos(phi))/R+180+360)%360};
+}
+function hull(p){
+ p=p.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);if(p.length<3)return p;
+ const x=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]),lo=[],up=[];
+ for(const v of p){while(lo.length>=2&&x(lo[lo.length-2],lo[lo.length-1],v)<=0)lo.pop();lo.push(v);}
+ for(let i=p.length-1;i>=0;i--){const v=p[i];while(up.length>=2&&x(up[up.length-2],up[up.length-1],v)<=0)up.pop();up.push(v);}
+ lo.pop();up.pop();return lo.concat(up);
+}
+
+/* ---------- ombres LiDAR : balayage de la grille de hauteurs (MNH) dans l'axe du soleil ---------- */
+function shade(g){
+ const {W,H,h,cellM}=g,az=sun.az*R,tn=Math.tan(sun.el*R),sx=Math.sin(az),sy=-Math.cos(az),Rm=new Float32Array(W*H),
+  xm=Math.abs(sx)>=Math.abs(sy),ia=xm?(sx>0?1:-1):(sy>0?1:-1),f=xm?sy/Math.abs(sx):sx/Math.abs(sy),
+  L=cellM*Math.hypot(1,f)*tn,A=xm?W:H,B=xm?H:W;
+ for(let a=ia>0?A-1:0;a>=0&&a<A;a-=ia){
+  const na=a+ia,ok=na>=0&&na<A;
+  for(let b=0;b<B;b++){
+   let nb=0;
+   if(ok){
+    const t=b+f,b0=Math.floor(t),fr=t-b0,
+     v0=(b0>=0&&b0<B)?Rm[xm?b0*W+na:na*W+b0]:0,v1=(b0+1>=0&&b0+1<B)?Rm[xm?(b0+1)*W+na:na*W+b0+1]:0;
+    nb=v0*(1-fr)+v1*fr-L;
+   }
+   const i=xm?b*W+a:a*W+b,hv=h[i];
+   Rm[i]=hv>nb?hv:(nb>0?nb:0);
+  }
+ }
+ return Rm;
+}
+function drawLid(){
+ const g=lid,Rm=shade(g),d=g.im.data;
+ for(let i=0;i<Rm.length;i++)d[i*4+3]=Rm[i]>.3?255:0;
+ g.c2.putImageData(g.im,0,0);
+ map.getSource('lids').updateImage({url:g.cv.toDataURL(),coordinates:g.co});
+ map.setLayoutProperty('lids','visibility','visible');
+}
+async function fetchLidar(bx){
+ let err='';
+ for(const st of ['normal','','normal']){
+  try{
+   const ac=new AbortController(),to=setTimeout(()=>ac.abort(),45000);
+   const r=await fetch(WMS+'&STYLES='+st+'&BBOX='+bx.join(','),{signal:ac.signal}),ct=r.headers.get('content-type')||'';
+   if(!r.ok||/xml|html|text/i.test(ct)){clearTimeout(to);throw new Error('HTTP '+r.status+' '+ct);}
+   const buf=await r.arrayBuffer();clearTimeout(to);
+   const img=await(await GeoTIFF.fromArrayBuffer(buf)).getImage(),W=img.getWidth(),H=img.getHeight(),v=(await img.readRasters())[0],h=new Float32Array(W*H);
+   let n=0;for(let i=0;i<h.length;i++){const x=v[i];if(x>=2&&x<200){h[i]=x;n++;}}
+   if(n<10)throw new Error('aucune donnée LiDAR sur cette zone');
+   return{h,W,H};
+  }catch(e){err=e.name==='AbortError'?'délai dépassé':(e.message||String(e));}
+ }
+ throw new Error(err);
+}
+function lidar(prom,p,tid){
+ lidBusy=true;
+ const bx=[p[0]-HALF,p[1]-HALF,p[0]+HALF,p[1]+HALF];
+ (prom||fetchLidar(bx)).then(res=>{
+  const cv=document.createElement('canvas');cv.width=res.W;cv.height=res.H;const c2=cv.getContext('2d'),lat=m2ll(p[0],p[1])[1];
+  lid={cx:p[0],cy:p[1],W:res.W,H:res.H,h:res.h,cellM:2*HALF/res.W*Math.cos(lat*R),cv,c2,im:c2.createImageData(res.W,res.H),
+   co:[m2ll(bx[0],bx[3]),m2ll(bx[2],bx[3]),m2ll(bx[2],bx[1]),m2ll(bx[0],bx[1])]};
+  lidFail=false;shadows();
+ },e=>{
+  say('LiDAR indisponible ('+(e.message||e)+') : arbres OSM utilisés.');
+  if(!lid){lidFail=true;load();}
+ }).finally(()=>{lidBusy=false;tend(tid);});
+}
+function loadLidar(){
+ if(!ready||lidBusy||map.getZoom()<15)return;
+ const c=map.getCenter(),p=ll2m(c.lng,c.lat);
+ if(lid&&Math.abs(p[0]-lid.cx)<HALF*.4&&Math.abs(p[1]-lid.cy)<HALF*.4)return;
+ lidar(null,p,tstart('LiDAR',5000));
+}
+
+/* ---------- ombres OSM (repli) : bâtiments, arbres, bois ---------- */
+function osmShadows(){
+ const out=[];let nb=0,nt=0;
+ const b=map.getBounds(),pd=.004,w=b.getWest()-pd,e=b.getEast()+pd,s=b.getSouth()-pd,n=b.getNorth()+pd,
+  az=sun.az*R,ux=-Math.sin(az),uy=-Math.cos(az),te=Math.tan(sun.el*R),se=Math.sin(sun.el*R),polys=[],
+  deg=(lat,E,N)=>[E/(111320*Math.cos(lat*R)),N/111320];
+ for(const f of map.querySourceFeatures('ofm',{sourceLayer:'building'})){
+  const q=f.properties,g=f.geometry;if(!g||q.hide_3d===true)continue;
+  const rings=g.type==='Polygon'?[g.coordinates[0]]:g.type==='MultiPolygon'?g.coordinates.map(r=>r[0]):[],hb=Math.max(3,+q.render_height||5);
+  for(const ring of rings){
+   const lat=ring[0][1];if(ring[0][0]<w||ring[0][0]>e||lat<s||lat>n)continue;
+   nb++;
+   const len=Math.min(400,hb/te),[dx,dy]=deg(lat,ux*len,uy*len),pts=[];
+   for(const c of ring)pts.push(c,[c[0]+dx,c[1]+dy]);
+   const h=hull(pts);if(h.length>2)polys.push([h.concat([h[0]])]);
+  }
+ }
+ for(const q of tr.values()){
+  if(q.k===0){
+   if(q.lng<w||q.lng>e||q.lat<s||q.lat>n)continue;
+   nt++;
+   const off=Math.min(150,q.h*.65/te),a=Math.min(200,Math.max(q.r,q.r/se)+q.h*.35/te),ring=[];
+   for(let i=0;i<14;i++){
+    const t=i/14*2*Math.PI,al=off+Math.cos(t)*a,pe=Math.sin(t)*q.r,[dx,dy]=deg(q.lat,al*ux-pe*uy,al*uy+pe*ux);
+    ring.push([q.lng+dx,q.lat+dy]);
+   }
+   ring.push(ring[0]);polys.push([ring]);
+  }else{
+   if(q.bx[2]<w||q.bx[0]>e||q.bx[3]<s||q.bx[1]>n)continue;
+   nt++;
+   const len=Math.min(300,q.h/te),[dx,dy]=deg(q.lat,ux*len,uy*len),parts=[[q.ring]];
+   parts.push([q.ring.map(c=>[c[0]+dx,c[1]+dy])]);
+   for(let i=0;i<q.ring.length-1;i++){const a=q.ring[i],c=q.ring[i+1];parts.push([[a,c,[c[0]+dx,c[1]+dy],[a[0]+dx,a[1]+dy],a]]);}
+   try{for(const p of PC.union(parts[0],...parts.slice(1)))polys.push(p);}
+   catch(err){const h=hull(q.ring.concat(q.ring.map(c=>[c[0]+dx,c[1]+dy])));if(h.length>2)polys.push([h.concat([h[0]])]);}
+  }
+ }
+ let merged=null;
+ if(PC&&polys.length>1&&polys.length<5000){try{merged=PC.union(polys[0],...polys.slice(1));}catch(err){merged=null;}}
+ if(merged)out.push({type:'Feature',properties:{},geometry:{type:'MultiPolygon',coordinates:merged}});
+ else for(const p of polys)out.push({type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:p}});
+ map.getSource('shd').setData({type:'FeatureCollection',features:out});
+ say(map.getZoom()>=15?nb+' bâtiments · '+nt+' arbres/bois (OSM) dans la vue':'');
+}
+function shadows(){
+ if(!ready)return;
+ const empty={type:'FeatureCollection',features:[]};
+ if(sun.el<=1){map.getSource('shd').setData(empty);map.setLayoutProperty('lids','visibility','none');say('Soleil sous l\'horizon.');return;}
+ if(lid){drawLid();map.getSource('shd').setData(empty);say('');return;}
+ osmShadows();
+}
+const later=()=>{if(!tShadow)tShadow=setTimeout(()=>{tShadow=0;shadows();},120);};
+
+function refresh(){
+ const d=new Date(yr,0,+D.value);
+ $('dv').textContent=d.getDate()+' '+MO[d.getMonth()];$('tv').textContent=hh(+T.value);
+ if(!ready)return;
+ const c=map.getCenter();sun=sunPos(when(),c.lat,c.lng);
+ try{map.setLight({anchor:'map',position:[1.5,sun.az,Math.max(0,90-sun.el)],intensity:.5,color:'#fff'});}catch(e){}
+ map.setPaintProperty('hill','hillshade-illumination-direction',sun.az);
+ map.setPaintProperty('hill','hillshade-exaggeration',sun.el>0?Math.min(1,.5+.5*Math.exp(-sun.el/30)):0);
+ later();
+}
+
+/* ---------- Overpass : miroirs en parallèle + 3 tentatives ---------- */
+function once(q){
+ const ac=new AbortController(),body='data='+encodeURIComponent(q);
+ return new Promise((ok,ko)=>{
+  let n=SRV.length,last;const t=setTimeout(()=>ac.abort(),25000);
+  SRV.forEach(u=>fetch(u,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body,signal:ac.signal})
+   .then(r=>{if(!r.ok)throw new Error(u.split('/')[2]+' HTTP '+r.status);return r.json();})
+   .then(j=>{clearTimeout(t);ac.abort();ok(j);})
+   .catch(e=>{last=e;if(--n===0){clearTimeout(t);ko(new Error(last.name==='AbortError'?'délai dépassé':last.message));}}));
+ });
+}
+async function overpass(q){
+ let err;
+ for(let k=0;k<3;k++){
+  try{return await once(q);}
+  catch(e){err=e;if(k<2){say('Overpass saturé : nouvelle tentative '+(k+2)+'/3...');await new Promise(r=>setTimeout(r,1200*(k+1)));}}
+ }
+ throw err;
+}
+const bb=b=>b[1]+','+b[0]+','+b[3]+','+b[2],
+ qT=b=>'[out:json][timeout:25];(node["natural"="tree"]('+bb(b)+');way["natural"="tree_row"]('+bb(b)+');way["natural"="wood"]('+bb(b)+');way["landuse"="forest"]('+bb(b)+'););out tags geom;';
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v)),closed=g=>g.length>3&&g[0][0]===g[g.length-1][0]&&g[0][1]===g[g.length-1][1];
+
+function ingestT(data){
+ if(tr.size>20000){tr.clear();boxT.length=0;}
+ for(const e of data.elements){
+  const t=e.tags||{};let h=parseFloat(t.height);
+  if(e.type==='node'){
+   h=clamp(isFinite(h)?h:8,3,40);
+   tr.set('n'+e.id,{k:0,lng:e.lon,lat:e.lat,h,r:Math.max(1.5,(parseFloat(t.diameter_crown)||h*.6)/2)});
+  }else if(e.type==='way'&&e.geometry){
+   const g=e.geometry.map(p=>[p.lon,p.lat]);
+   if(t.natural==='tree_row'){
+    h=clamp(isFinite(h)?h:8,3,40);let i=0;
+    for(let j=0;j<g.length-1&&i<300;j++){
+     const a=g[j],c=g[j+1],m=Math.hypot((c[0]-a[0])*111320*Math.cos(a[1]*R),(c[1]-a[1])*111320),k=Math.max(1,Math.ceil(m/6));
+     for(let s=0;s<k;s++,i++)tr.set('r'+e.id+'_'+i,{k:0,lng:a[0]+(c[0]-a[0])*s/k,lat:a[1]+(c[1]-a[1])*s/k,h,r:Math.max(1.5,h*.3)});
+    }
+   }else if(closed(g)){
+    const st=Math.ceil(g.length/80),ring=g.filter((p,i)=>i%st===0);ring.push(ring[0]);
+    const xs=ring.map(p=>p[0]),ys=ring.map(p=>p[1]);
+    tr.set('w'+e.id,{k:1,ring,h:clamp(isFinite(h)?h:15,5,40),lat:ys[0],bx:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]});
+   }
+  }
+ }
+}
+const cov=(boxes,b)=>boxes.some(x=>b.getWest()>=x[0]&&b.getSouth()>=x[1]&&b.getEast()<=x[2]&&b.getNorth()<=x[3]);
+function run(box){
+ boxT.push(box);const tid=tstart('arbres OSM',4000);
+ overpass(qT(box)).then(d=>{ingestT(d);if(!boxT.includes(box))boxT.push(box);shadows();},
+  e=>{const i=boxT.indexOf(box);if(i>=0)boxT.splice(i,1);say('Échec Overpass : '+(e.message||e)+'. Déplace la carte pour réessayer.');}).finally(()=>tend(tid));
+}
+function load(){
+ if(!ready||!lidFail||map.getZoom()<16)return;
+ const b=map.getBounds(),px=(b.getEast()-b.getWest())*.1,py=(b.getNorth()-b.getSouth())*.1;
+ if(!cov(boxT,b))run([b.getWest()-px,b.getSouth()-py,b.getEast()+px,b.getNorth()+py]);
+}
+
+/* ---------- préchargement : les requêtes partent avant la fin du chargement de la carte ---------- */
+const tidM=tstart('carte et bâtiments',2500);
+
+const style={version:8,sources:{sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:18,attribution:'Imagery © Esri | LiDAR HD © IGN'},ofm:{type:'vector',url:'https://tiles.openfreemap.org/planet'}},layers:[{id:'sat',type:'raster',source:'sat'}]};
+map=new maplibregl.Map({container:'map',style,bounds:[[-5.6,41.0],[10.0,51.6]],fitBoundsOptions:{padding:8},attributionControl:{compact:true},maxZoom:19,maxPitch:80,canvasContextAttributes:{antialias:true}});
+map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+map.addControl(new maplibregl.ScaleControl({maxWidth:120,unit:'metric'}),'bottom-right');
+const hideAttr=()=>{const a=document.querySelector('.maplibregl-ctrl-attrib');if(a){a.removeAttribute('open');a.classList.remove('maplibregl-compact-show');}};
+map.once('load',hideAttr);
+map.once('idle',()=>{tend(tidM);later();hideAttr();});
+
+map.on('load',()=>{
+ map.addSource('dem',{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],encoding:'terrarium',tileSize:256,maxzoom:15,attribution:'Relief : Mapzen / AWS'});
+ map.addLayer({id:'hill',type:'hillshade',source:'dem',paint:{'hillshade-exaggeration':.5,'hillshade-shadow-color':'#000000','hillshade-accent-color':'#000000','hillshade-highlight-color':'rgba(0,0,0,0)','hillshade-illumination-anchor':'map','hillshade-illumination-direction':180}});
+ const co0=[[C0[0]-.01,C0[1]+.01],[C0[0]+.01,C0[1]+.01],[C0[0]+.01,C0[1]-.01],[C0[0]-.01,C0[1]-.01]];
+ map.addSource('lids',{type:'image',url:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',coordinates:co0});
+ map.addLayer({id:'lids',type:'raster',source:'lids',layout:{visibility:'none'},paint:{'raster-opacity':.25,'raster-fade-duration':0}});
+ map.addSource('shd',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+ map.addLayer({id:'shd',type:'fill',source:'shd',paint:{'fill-color':'#000000','fill-opacity':.25}});
+ map.addLayer({id:'bld3d',type:'fill-extrusion',source:'ofm','source-layer':'building',minzoom:14,filter:['!=',['get','hide_3d'],true],paint:{'fill-extrusion-color':'#e6dfd2','fill-extrusion-height':['coalesce',['get','render_height'],5],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.95,'fill-extrusion-vertical-gradient':true}});
+ try{map.setTerrain({source:'dem',exaggeration:1});}catch(e){}
+ ready=true;refresh();
+});
+map.on('moveend',()=>{
+ refresh();clearTimeout(tBuild);tBuild=setTimeout(()=>{load();loadLidar();},400);
+});
+D.addEventListener('input',refresh);
+T.addEventListener('input',refresh);
+refresh();
+
+const sg=$('sg');let sgT=0,sgItems=[];
+const fly=c=>{sg.style.display='none';map.flyTo({center:c,zoom:17,pitch:60,bearing:-20});};
+async function suggest(){
+ const q=$('q').value.trim();
+ if(q.length<2||(/^\d+$/.test(q)&&q.length!==5)){sg.style.display='none';sgItems=[];return;}
+ try{
+  const r=await fetch('https://geo.api.gouv.fr/communes?fields=nom,codesPostaux,centre,departement&limit=7&boost=population&'+(/^\d{5}$/.test(q)?'codePostal='+q:'nom='+encodeURIComponent(q))),j=await r.json();
+  if($('q').value.trim()!==q)return;
+  sgItems=j.filter(c=>c.centre);sg.innerHTML='';
+  for(const c of sgItems){
+   const cp=c.codesPostaux||[],d=document.createElement('div');
+   d.textContent=c.nom+(cp.length?' ('+(cp.length>1?cp[0]+' - '+cp[cp.length-1]:cp[0])+')':'')+(c.departement?' · '+c.departement.nom:'');
+   d.onclick=()=>{$('q').value=c.nom;fly(c.centre.coordinates);};
+   sg.appendChild(d);
+  }
+  sg.style.display=sgItems.length?'block':'none';
+ }catch(e){say('Recherche impossible : '+(e.message||e));}
+}
+$('q').addEventListener('input',()=>{clearTimeout(sgT);sgT=setTimeout(suggest,200);});
+const go=async()=>{clearTimeout(sgT);await suggest();if(sgItems.length)fly(sgItems[0].centre.coordinates);else say('Ville introuvable.');};
+$('go').onclick=go;
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+document.addEventListener('click',e=>{if(!e.target.closest('#p'))sg.style.display='none';});
+$('gps').onclick=()=>{
+ if(!navigator.geolocation)return say('Géolocalisation indisponible.');
+ navigator.geolocation.getCurrentPosition(p=>fly([p.coords.longitude,p.coords.latitude]),e=>say('Position refusée : '+e.message));
+};
+})();
+</script>
+</body>
+</html>
