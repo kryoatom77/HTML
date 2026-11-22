@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Solombre - ombres solaires 3D</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMTI4IDEyOCI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJiZyIgeDE9IjAlIiB5MT0iMCUiIHgyPSIxMDAlIiB5Mj0iMTAwJSI+PHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI2ZmNmIwMCIvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iI2UyMjQyOCIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJzaGFkb3ciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMDAwMDAwIiBzdG9wLW9wYWNpdHk9IjAuMjgiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMwMDAwMDAiIHN0b3Atb3BhY2l0eT0iMC4wOCIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiBmaWxsPSJ1cmwoI2JnKSIvPjxwb2x5Z29uIHBvaW50cz0iMjIsNjggMzAsOTAgNjgsMTI4IDEyOCwxMjggNjcsMjkgMTA2LDYwIDEwNiw2MiA5OCw1OSA5OCw5MCA1OCw5MCA1OCw2NyA2OSw2NyA2OSw5MCA1Niw5MCA1Niw1OCA1Myw2MSA1Myw5MCAzMCw5MCIgZmlsbD0idXJsKCNzaGFkb3cpIi8+PHBhdGggZD0iTTY3LDI5IEw5OCw1NSBMMTA2LDU5IEMxMDcuNSw2MCAxMDYsNjMgMTA0LDYyIEw5OCw1OSBMOTgsOTAgTDY5LDkwIEw2OSw2NyBMNTgsNjcgTDU4LDkwIEw1Niw5MCBMNTYsNTggTDY3LDQ4IEw5OCw1OSIgZmlsbD0iI2ZmZmZmZiIvPjxwb2x5Z29uIHBvaW50cz0iNjcsMzUgOTgsNTkgOTgsOTAgNjksOTAgNjksNjcgNTgsNjcgNTgsOTAgNTYsOTAgNTYsNTAiIGZpbGw9IiNmZmZmZmYiLz48cGF0aCBkPSJNNjcsMjggTDUwLDQ0IEwyMSw1NyBDMTksNTggMjAsNjIgMjIsNjEgTDUzLDQ3IEw2NywzNCBMMTA0LDYyIEMxMDYsNjMgMTA3LDU5IDEwNSw1OCBaIiBmaWxsPSIjZmZmZmZmIi8+PHBvbHlnb24gcG9pbnRzPSIzMCw2MCA1Myw1MCA1Myw5MCAzMCw5MCIgZmlsbD0iI2ZmZmZmZiIvPjxjaXJjbGUgY3g9Ijc3IiBjeT0iNTAiIHI9IjUuNSIgZmlsbD0iI2VhM2QxYyIvPjwvc3ZnPg==">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.1/dist/maplibre-gl.css">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font:12px system-ui,Arial,sans-serif;color:#1b2733}
+#map{position:absolute;inset:0}
+#p{position:absolute;z-index:5;top:10px;left:10px;width:270px;max-width:calc(100% - 70px);background:#fffffff0;border-radius:10px;box-shadow:0 4px 18px #0006;padding:8px;display:flex;flex-direction:column;gap:6px}
+.r{display:flex;gap:5px}
+.s{display:grid;grid-template-columns:34px 1fr 54px;align-items:center;gap:6px}
+.s b{text-align:right;font-variant-numeric:tabular-nums}
+input,button{font:inherit;padding:5px 7px;border:1px solid #b9c2cc;border-radius:6px;background:#fff;min-width:0}
+input[type=range]{padding:0;margin:0;width:100%;accent-color:#f08a00}
+#q{flex:1}
+#sg{position:absolute;top:42px;left:8px;right:8px;background:#fff;border-radius:6px;box-shadow:0 4px 14px #0005;z-index:6;display:none;max-height:240px;overflow:auto}
+#sg div{padding:7px 9px;cursor:pointer;border-bottom:1px solid #eef1f4}
+#sg div:hover{background:#fff1de}
+button{cursor:pointer;background:#f08a00;border-color:#f08a00;color:#fff;font-weight:600}
+#g{height:6px;background:#e3e8ee;border-radius:3px;overflow:hidden;opacity:0;transition:opacity .4s}
+#gi{display:block;height:100%;width:0;background:repeating-linear-gradient(45deg,#f08a00 0 8px,#ffb347 8px 16px);background-size:22px 22px;animation:mv .6s linear infinite;transition:width .25s}
+@keyframes mv{to{background-position:22px 0}}
+#hint,#st{font-size:11px;color:#556}
+#st{min-height:14px}
+#co{position:absolute;z-index:4;left:10px;bottom:10px;background:#000a;color:#fff;padding:3px 7px;border-radius:5px;font-size:11px;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="p">
+ <div class="r"><input id="q" placeholder="Ville ou code postal" autocomplete="off"><button id="go">OK</button><button id="gps">GPS</button></div>
+ <div id="sg"></div>
+ <div class="s"><span>Date</span><input type="range" id="date" min="1" max="365" step="1"><b id="dv"></b></div>
+ <div class="s"><span>Heure</span><input type="range" id="time" min="0" max="1435" step="5"><b id="tv"></b></div>
+ <div id="hint"></div>
+ <div id="g"><i id="gi"></i></div>
+ <div id="st">Initialisation...</div>
+</div>
+<div id="co">© Kryo ATOM 2026</div>
+
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.1/dist/maplibre-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/earcut@2.2.4/dist/earcut.min.js"></script>
+<script>
+(()=>{
+'use strict';
+(()=>{const l=document.querySelector('link[rel=icon]'),i=new Image();i.onload=()=>{const c=document.createElement('canvas');c.width=c.height=64;c.getContext('2d').drawImage(i,0,0,64,64);l.type='image/png';l.href=c.toDataURL('image/png');};i.src=l.href;})();
+const $=id=>document.getElementById(id),R=Math.PI/180,say=t=>$('st').textContent=t,pad=n=>String(n).padStart(2,'0');
+const MO=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'],hh=m=>pad(Math.floor(m/60))+':'+pad(m%60);
+if(!window.maplibregl){say('MapLibre ne se charge pas : vérifie la connexion internet.');return;}
+$('hint').textContent=matchMedia('(pointer:coarse)').matches?'Deux doigts : changer l\'angle de la vue.':'Ctrl + glisser : changer l\'angle de la vue.';
+const PC=window.polygonClipping,C0=[1.4442,44.447],RE=6378137,HALF=600,N=640,
+ SRV=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter','https://overpass.private.coffee/api/interpreter'],
+ WMS='https://data.geopf.fr/wms-r/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=IGNF_LIDAR-HD_MNH_ELEVATION.ELEVATIONGRIDCOVERAGE.LAMB93&FORMAT=image/geotiff&CRS=EPSG:3857&WIDTH='+N+'&HEIGHT='+N,
+ ll2m=(lng,lat)=>[lng*R*RE,Math.log(Math.tan(Math.PI/4+lat*R/2))*RE],
+ m2ll=(x,y)=>[x/RE/R,(2*Math.atan(Math.exp(y/RE))-Math.PI/2)/R];
+let map,ready=false,sun={el:0,az:0},tr=new Map(),boxT=[],tBuild,tShadow=0,lid=null,lidBusy=false,lidFail=false;
+
+/* textures : pierre sur les murs, tuiles sur les toits (motifs répétés, couleurs modulées par le soleil) */
+function mkTex(draw){const c=document.createElement('canvas');c.width=c.height=32;const x=c.getContext('2d');draw(x);return x.getImageData(0,0,32,32);}
+function rnd(seed){let a=seed;return()=>{a=(a*1664525+1013904223)%4294967296;return a/4294967296;};}
+const stoneTex=()=>mkTex(x=>{
+ const r=rnd(7);x.fillStyle='#8f8470';x.fillRect(0,0,32,32);
+ for(let j=0;j<4;j++)for(let i=-1;i<3;i++){
+  const bx=(j%2)*8+i*16,v=Math.floor(r()*28-14);
+  x.fillStyle='rgb('+(206+v)+','+(194+v)+','+(168+v)+')';x.fillRect(bx+1,j*8+1,15,7);
+ }
+});
+const tileTex=()=>mkTex(x=>{
+ const r=rnd(11);x.fillStyle='#6d2e16';x.fillRect(0,0,32,32);
+ for(let j=0;j<4;j++)for(let i=-1;i<5;i++){
+  const bx=(j%2)*4+i*8,v=Math.floor(r()*30-15);
+  x.fillStyle='rgb('+(186+v)+','+(88+v/2)+','+(52+v/3)+')';x.fillRect(bx+1,j*8,7,6);
+  x.fillStyle='rgb('+(140+v)+','+(62+v/2)+','+(34+v/3)+')';x.fillRect(bx+1,j*8+6,7,2);
+ }
+});
+/* ---------- jauge de chargement ---------- */
+const tk=new Map();let tkId=0,gOff=0;
+function tstart(label,tau){const id=++tkId;tk.set(id,{label,t0:performance.now(),tau,done:false});gauge();return id;}
+function tend(id){const t=tk.get(id);if(t)t.done=true;gauge();}
+function gauge(){
+ const now=performance.now();let s=0,act=[];
+ for(const t of tk.values()){if(t.done)s+=1;else{s+=.92*(1-Math.exp(-(now-t.t0)/t.tau));act.push(t.label);}}
+ if(!tk.size){$('g').style.opacity=0;return;}
+ $('g').style.opacity=1;$('gi').style.width=(100*s/tk.size)+'%';
+ if(act.length){clearTimeout(gOff);gOff=0;say('Chargement : '+act.join(', ')+'...');}
+ else if(!gOff)gOff=setTimeout(()=>{gOff=0;if([...tk.values()].every(t=>t.done)){tk.clear();gauge();}},700);
+}
+setInterval(gauge,150);
+
+/* ---------- date / heure : 1er janvier -> 31 décembre, 00:00 -> 23:55 ---------- */
+const now=new Date(),yr=now.getFullYear(),nd=(yr%4===0&&yr%100!==0)||yr%400===0?366:365,D=$('date'),T=$('time');
+D.max=nd;D.value=Math.round((Date.UTC(yr,now.getMonth(),now.getDate())-Date.UTC(yr,0,0))/864e5);
+T.value=Math.min(1435,Math.round((now.getHours()*60+now.getMinutes())/5)*5);
+function when(){const d=new Date(yr,0,+D.value),t=+T.value;d.setHours(Math.floor(t/60),t%60,0,0);return d;}
+
+function sunPos(date,lat,lng){
+ const d=date.getTime()/864e5-10957.5,M=R*(357.5291+.98560028*d),
+ L=M+R*(1.9148*Math.sin(M)+.02*Math.sin(2*M)+3e-4*Math.sin(3*M))+R*102.9372+Math.PI,e=R*23.4397,
+ dec=Math.asin(Math.sin(e)*Math.sin(L)),ra=Math.atan2(Math.sin(L)*Math.cos(e),Math.cos(L)),
+ H=R*(280.16+360.9856235*d)+R*lng-ra,phi=lat*R;
+ return{el:Math.asin(Math.sin(phi)*Math.sin(dec)+Math.cos(phi)*Math.cos(dec)*Math.cos(H))/R,
+  az:(Math.atan2(Math.sin(H),Math.cos(H)*Math.sin(phi)-Math.tan(dec)*Math.cos(phi))/R+180+360)%360};
+}
+function hull(p){
+ p=p.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);if(p.length<3)return p;
+ const x=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]),lo=[],up=[];
+ for(const v of p){while(lo.length>=2&&x(lo[lo.length-2],lo[lo.length-1],v)<=0)lo.pop();lo.push(v);}
+ for(let i=p.length-1;i>=0;i--){const v=p[i];while(up.length>=2&&x(up[up.length-2],up[up.length-1],v)<=0)up.pop();up.push(v);}
+ lo.pop();up.pop();return lo.concat(up);
+}
+
+/* ---------- ombres LiDAR : balayage de la grille de hauteurs (MNH) dans l'axe du soleil ---------- */
+function shade(g){
+ const {W,H,h,cellM}=g,az=sun.az*R,tn=Math.tan(sun.el*R),sx=Math.sin(az),sy=-Math.cos(az),Rm=new Float32Array(W*H),Sm=new Float32Array(W*H),
+  xm=Math.abs(sx)>=Math.abs(sy),ia=xm?(sx>0?1:-1):(sy>0?1:-1),f=xm?sy/Math.abs(sx):sx/Math.abs(sy),
+  L=cellM*Math.hypot(1,f)*tn,A=xm?W:H,B=xm?H:W;
+ for(let a=ia>0?A-1:0;a>=0&&a<A;a-=ia){
+  const na=a+ia,ok=na>=0&&na<A;
+  for(let b=0;b<B;b++){
+   let nb=0;
+   if(ok){
+    const t=b+f,b0=Math.floor(t),fr=t-b0,
+     v0=(b0>=0&&b0<B)?Rm[xm?b0*W+na:na*W+b0]:0,v1=(b0+1>=0&&b0+1<B)?Rm[xm?(b0+1)*W+na:na*W+b0+1]:0;
+    nb=v0*(1-fr)+v1*fr-L;
+   }
+   const i=xm?b*W+a:a*W+b,hv=h[i];
+   const nv=nb>0?nb:0;Sm[i]=nv;Rm[i]=hv>nv?hv:nv;
+  }
+ }
+ return{Rm,Sm};
+}
+function drawLid(){
+ const g=lid,{Rm,Sm}=shade(g),d=g.im.data;
+ for(let i=0;i<Rm.length;i++){d[i*4+3]=Rm[i]>.3?255:0;g.S[i]=Math.min(255,Math.round(Sm[i]*2));}
+ g.Sv++;
+ g.c2.putImageData(g.im,0,0);
+ map.getSource('lids').updateImage({url:g.cv.toDataURL(),coordinates:g.co});
+ map.setLayoutProperty('lids','visibility','visible');
+ map.triggerRepaint();
+}
+async function fetchLidar(bx){
+ let err='';
+ for(const st of ['normal','','normal']){
+  try{
+   const ac=new AbortController(),to=setTimeout(()=>ac.abort(),45000);
+   const r=await fetch(WMS+'&STYLES='+st+'&BBOX='+bx.join(','),{signal:ac.signal}),ct=r.headers.get('content-type')||'';
+   if(!r.ok||/xml|html|text/i.test(ct)){clearTimeout(to);throw new Error('HTTP '+r.status+' '+ct);}
+   const buf=await r.arrayBuffer();clearTimeout(to);
+   const img=await(await GeoTIFF.fromArrayBuffer(buf)).getImage(),W=img.getWidth(),H=img.getHeight(),v=(await img.readRasters())[0],h=new Float32Array(W*H);
+   let n=0;for(let i=0;i<h.length;i++){const x=v[i];if(x>=2&&x<200){h[i]=x;n++;}}
+   if(n<10)throw new Error('aucune donnée LiDAR sur cette zone');
+   return{h,W,H};
+  }catch(e){err=e.name==='AbortError'?'délai dépassé':(e.message||String(e));}
+ }
+ throw new Error(err);
+}
+function lidar(prom,p,tid){
+ lidBusy=true;
+ const bx=[p[0]-HALF,p[1]-HALF,p[0]+HALF,p[1]+HALF];
+ (prom||fetchLidar(bx)).then(res=>{
+  const cv=document.createElement('canvas');cv.width=res.W;cv.height=res.H;const c2=cv.getContext('2d'),lat=m2ll(p[0],p[1])[1];
+  lid={cx:p[0],cy:p[1],W:res.W,H:res.H,h:res.h,cellM:2*HALF/res.W*Math.cos(lat*R),cv,c2,im:c2.createImageData(res.W,res.H),S:new Uint8Array(res.W*res.H),Sv:0,
+   co:[m2ll(bx[0],bx[3]),m2ll(bx[2],bx[3]),m2ll(bx[2],bx[1]),m2ll(bx[0],bx[1])]};
+  lidFail=false;shadows();scheduleMesh();
+ },e=>{
+  say('LiDAR indisponible ('+(e.message||e)+') : arbres OSM utilisés.');
+  if(!lid){lidFail=true;load();}
+ }).finally(()=>{lidBusy=false;tend(tid);});
+}
+function loadLidar(){
+ if(!ready||lidBusy||map.getZoom()<15)return;
+ const c=map.getCenter(),p=ll2m(c.lng,c.lat);
+ if(lid&&Math.abs(p[0]-lid.cx)<HALF*.4&&Math.abs(p[1]-lid.cy)<HALF*.4)return;
+ lidar(null,p,tstart('LiDAR',5000));
+}
+
+/* ---------- bâtiments en rendu GL : murs en pierre, toits en tuiles, ombres portées sur les façades (champ de hauteur LiDAR) ---------- */
+const EC=window.earcut&&(window.earcut.default||window.earcut),USE_GL=!!EC&&!/[?&]gl=0/.test(location.search);
+const VS=`#version 300 es
+uniform mat4 uM;
+in vec3 aPos;in vec3 aNrm;in vec2 aUV;in float aKind;in float aH;
+out vec3 vN;out vec2 vUV;out float vK;out float vH;out vec2 vXY;
+void main(){vN=aNrm;vUV=aUV;vK=aKind;vH=aH;vXY=aPos.xy;gl_Position=uM*vec4(aPos,1.0);}`;
+const FS=`#version 300 es
+precision highp float;
+uniform vec3 uL;uniform sampler2D uS;uniform vec4 uG;uniform vec2 uOff;uniform float uHas;
+in vec3 vN;in vec2 vUV;in float vK;in float vH;in vec2 vXY;
+out vec4 o;
+float hs(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+vec3 stone(vec2 uv,float sc){
+ float ch=.35*sc,rw=floor(uv.y/ch),off=hs(vec2(rw,3.))*3.*sc,bu=(uv.x+off)/(.9*sc),cl=floor(bu);
+ vec2 f=vec2(fract(bu),fract(uv.y/ch));
+ float mo=max(step(f.x,.04),step(f.y,.09)),r=hs(vec2(cl,rw));
+ return mix(vec3(.82,.76,.64),vec3(.66,.60,.50),r)*(1.-.38*mo);
+}
+vec3 tile(vec2 uv,float sc){
+ vec2 p=uv/(vec2(.24,.4)*sc);float rw=floor(p.y);p.x+=.5*mod(rw,2.);
+ vec2 f=fract(p);float r=hs(floor(p));
+ vec3 t=mix(vec3(.74,.34,.20),vec3(.60,.26,.15),r);
+ t*=1.-.30*smoothstep(.62,1.,f.y);t*=1.-.35*step(f.x,.05);
+ return t;
+}
+void main(){
+ float px=max(max(fwidth(vUV.x),fwidth(vUV.y)),.0001);
+ vec3 c;
+ if(vK<.5){float lv=max(0.,log2(px*5./.35)),k=floor(lv);c=mix(stone(vUV,exp2(k)),stone(vUV,exp2(k+1.)),lv-k);}
+ else{float lv=max(0.,log2(px*5./.4)),k=floor(lv);c=mix(tile(vUV,exp2(k)),tile(vUV,exp2(k+1.)),lv-k);}
+ float sh=0.;
+ if(uHas>.5&&vK<.5){
+  vec2 q=(vXY+uOff-uG.xy)/uG.zw;
+  if(q.x>=0.&&q.x<=1.&&q.y>=0.&&q.y<=1.){float s=texture(uS,q).r*127.5;sh=step(vH+.4,s);}
+ }
+ float d=max(dot(normalize(vN),uL),0.);
+ c*=.5+.5*d*(1.-sh);
+ o=vec4(c,1.);
+}`;
+let glc=null,pend=null,mesh=null,broken=false,meshT=0,upLid=null,upSv=-1,needMesh=false,mb=null;
+const setExt=on=>{for(const id of['bld3d','bld3d-roof'])if(map.getLayer(id))map.setLayoutProperty(id,'visibility',on?'visible':'none');};
+const mx=lng=>(lng+180)/360,my=lat=>.5-Math.log(Math.tan(Math.PI/4+lat*R/2))/(2*Math.PI);
+function buildMesh(){
+ if(!USE_GL||broken||!glc||!ready)return;
+ if(map.getZoom()<15){if(mesh&&mesh.n)pend={buf:new Float32Array(0),n:0,ox:0,oy:0,mpu:1};setExt(true);map.triggerRepaint();return;}
+ const fs=map.querySourceFeatures('ofm',{sourceLayer:'building'});
+ if(!fs.length)return;
+ const bd=map.getBounds(),pd=.012,w=bd.getWest()-pd,e=bd.getEast()+pd,s=bd.getSouth()-pd,nn=bd.getNorth()+pd,
+  mc=maplibregl.MercatorCoordinate.fromLngLat(map.getCenter()),ox=mc.x,oy=mc.y,mpu=mc.meterInMercatorCoordinateUnits(),seen=new Set();
+ mb={w,e,s,n:nn};
+ let buf=new Float32Array(1<<20),n=0;
+ const put=(x,y,z,nx,ny,nz,u,v,k,h)=>{
+  if((n+1)*10>buf.length){const nb=new Float32Array(buf.length*2);nb.set(buf);buf=nb;}
+  const o=n*10;buf[o]=x;buf[o+1]=y;buf[o+2]=z;buf[o+3]=nx;buf[o+4]=ny;buf[o+5]=nz;buf[o+6]=u;buf[o+7]=v;buf[o+8]=k;buf[o+9]=h;n++;
+ };
+ for(const f of fs){
+  const q=f.properties,g=f.geometry;if(!g||q.hide_3d===true)continue;
+  const polys=g.type==='Polygon'?[g.coordinates]:g.type==='MultiPolygon'?g.coordinates:[];
+  for(const poly of polys){
+   const ring=poly[0];if(!ring||ring.length<4)continue;
+   if(ring[0][0]<w||ring[0][0]>e||ring[0][1]<s||ring[0][1]>nn)continue;
+   const key=(+q.render_height||0)+':'+ring[0][0]+':'+ring[0][1]+':'+ring.length;if(seen.has(key))continue;seen.add(key);
+   if(n>1800000)break;
+   const m1=ring.length-1;let cx=0,cy=0;for(let i=0;i<m1;i++){cx+=ring[i][0];cy+=ring[i][1];}cx/=m1;cy/=m1;
+   const base=+q.render_min_height||0;let h=Math.max(3,+q.render_height||5);
+   h=Math.max(h,base+1);
+   const ge=map.queryTerrainElevation(new maplibregl.LngLat(cx,cy))||0,cosL=Math.cos(cy*R),zb=base>0?base:-3,z0=(ge+zb)*mpu,z1=(ge+h)*mpu,
+    co=[],ho=[],rs=[];
+   poly.forEach((r,ri)=>{
+    if(ri>0)ho.push(co.length/2);
+    const m=r.length-1,pts=[];
+    for(let i=0;i<m;i++){const x=mx(r[i][0])-ox,y=my(r[i][1])-oy;co.push(x,y);pts.push([x,y,r[i][0],r[i][1]]);}
+    rs.push({pts,hole:ri>0});
+   });
+   const tri=EC(co,ho,2);
+   for(const i of tri){const x=co[2*i],y=co[2*i+1];put(x,y,z1,0,0,1,x/mpu,y/mpu,1,h);}
+   for(const r of rs){
+    const p=r.pts,m=p.length;let A=0;
+    for(let i=0;i<m;i++){const a=p[i],b=p[(i+1)%m];A+=a[2]*cosL*b[3]-b[2]*cosL*a[3];}
+    const sg=(A>0?1:-1)*(r.hole?-1:1);let u=0;
+    for(let i=0;i<m;i++){
+     const a=p[i],b=p[(i+1)%m],dx=(b[2]-a[2])*cosL,dy=b[3]-a[3],ln=Math.hypot(dx,dy)||1e-12,nx=dy/ln*sg,ny=-dx/ln*sg,len=Math.hypot(b[0]-a[0],b[1]-a[1])/mpu;
+     put(a[0],a[1],z0,nx,ny,0,u,zb,0,zb);put(b[0],b[1],z0,nx,ny,0,u+len,zb,0,zb);put(b[0],b[1],z1,nx,ny,0,u+len,h,0,h);
+     put(a[0],a[1],z0,nx,ny,0,u,zb,0,zb);put(b[0],b[1],z1,nx,ny,0,u+len,h,0,h);put(a[0],a[1],z1,nx,ny,0,u,h,0,h);
+     u+=len;
+    }
+   }
+  }
+ }
+ if(!n)return;
+ pend={buf:buf.slice(0,n*10),n,ox,oy,mpu};setExt(false);map.triggerRepaint();
+}
+const scheduleMesh=()=>{clearTimeout(meshT);meshT=setTimeout(buildMesh,500);};
+const cl={id:'bld-gl',type:'custom',renderingMode:'3d',
+ onAdd(m,gl){
+  try{
+   const sh=(t,src)=>{const o=gl.createShader(t);gl.shaderSource(o,src);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(o));return o;};
+   const pr=gl.createProgram();gl.attachShader(pr,sh(gl.VERTEX_SHADER,VS));gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(pr);
+   if(!gl.getProgramParameter(pr,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(pr));
+   glc={pr,vao:gl.createVertexArray(),vb:gl.createBuffer(),tx:gl.createTexture(),u:{},init:false};
+   for(const k of['uM','uL','uS','uG','uOff','uHas'])glc.u[k]=gl.getUniformLocation(pr,k);
+  }catch(err){broken=true;say('Rendu GL indisponible : '+err.message);}
+ },
+ render(gl,args){
+  if(broken||!glc)return;
+  try{
+   const G=glc;
+   if(!G.init){
+    gl.bindTexture(gl.TEXTURE_2D,G.tx);gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.R8,1,1,0,gl.RED,gl.UNSIGNED_BYTE,new Uint8Array(1));
+    for(const[k,v]of[[gl.TEXTURE_MIN_FILTER,gl.NEAREST],[gl.TEXTURE_MAG_FILTER,gl.NEAREST],[gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE]])gl.texParameteri(gl.TEXTURE_2D,k,v);
+    G.init=true;
+   }
+   if(pend){
+    gl.bindVertexArray(G.vao);gl.bindBuffer(gl.ARRAY_BUFFER,G.vb);gl.bufferData(gl.ARRAY_BUFFER,pend.buf,gl.STATIC_DRAW);
+    const at=(nm,sz,off)=>{const l=gl.getAttribLocation(G.pr,nm);gl.enableVertexAttribArray(l);gl.vertexAttribPointer(l,sz,gl.FLOAT,false,40,off);};
+    at('aPos',3,0);at('aNrm',3,12);at('aUV',2,24);at('aKind',1,32);at('aH',1,36);
+    mesh={n:pend.n,ox:pend.ox,oy:pend.oy};pend=null;gl.bindVertexArray(null);
+   }
+   if(!mesh||!mesh.n)return;
+   if(lid&&(upLid!==lid||upSv!==lid.Sv)){
+    gl.bindTexture(gl.TEXTURE_2D,G.tx);gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.R8,lid.W,lid.H,0,gl.RED,gl.UNSIGNED_BYTE,lid.S);upLid=lid;upSv=lid.Sv;
+   }
+   const pd=args.defaultProjectionData,mm=Array.from(pd?pd.mainMatrix:args.modelViewProjectionMatrix),M=new Float32Array(16);
+   for(let i=0;i<16;i++)M[i]=mm[i];
+   for(let i=0;i<4;i++)M[12+i]=mm[12+i]+mesh.ox*mm[i]+mesh.oy*mm[4+i];
+   const az=sun.az*R,el=sun.el*R,k=1/40075016.68,gw=2*HALF*k,has=lid&&upLid===lid&&sun.el>1?1:0;
+   gl.useProgram(G.pr);
+   gl.uniformMatrix4fv(G.u.uM,false,M);
+   gl.uniform3f(G.u.uL,Math.sin(az)*Math.cos(el),Math.cos(az)*Math.cos(el),Math.sin(el));
+   gl.uniform1f(G.u.uHas,has);
+   if(has){
+    gl.uniform4f(G.u.uG,(lid.cx-HALF+20037508.34)*k-mesh.ox,(20037508.34-(lid.cy+HALF))*k-mesh.oy,gw,gw);
+    gl.uniform2f(G.u.uOff,1.5*gw/lid.W*Math.sin(az),-1.5*gw/lid.W*Math.cos(az));
+   }
+   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,G.tx);gl.uniform1i(G.u.uS,0);
+   gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.depthMask(true);
+   gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);gl.disable(gl.STENCIL_TEST);
+   gl.bindVertexArray(G.vao);gl.drawArrays(gl.TRIANGLES,0,mesh.n);gl.bindVertexArray(null);
+  }catch(err){broken=true;setTimeout(()=>{setExt(true);say('Rendu GL en échec : '+err.message);},0);}
+ }
+};
+
+/* ---------- ombres OSM (repli) : bâtiments, arbres, bois ---------- */
+function osmShadows(){
+ const out=[];let nb=0,nt=0;
+ const b=map.getBounds(),pd=.004,w=b.getWest()-pd,e=b.getEast()+pd,s=b.getSouth()-pd,n=b.getNorth()+pd,
+  az=sun.az*R,ux=-Math.sin(az),uy=-Math.cos(az),te=Math.tan(sun.el*R),se=Math.sin(sun.el*R),polys=[],
+  deg=(lat,E,N)=>[E/(111320*Math.cos(lat*R)),N/111320];
+ for(const f of map.querySourceFeatures('ofm',{sourceLayer:'building'})){
+  const q=f.properties,g=f.geometry;if(!g||q.hide_3d===true)continue;
+  const rings=g.type==='Polygon'?[g.coordinates[0]]:g.type==='MultiPolygon'?g.coordinates.map(r=>r[0]):[],hb=Math.max(3,+q.render_height||5);
+  for(const ring of rings){
+   const lat=ring[0][1];if(ring[0][0]<w||ring[0][0]>e||lat<s||lat>n)continue;
+   nb++;
+   const len=Math.min(400,hb/te),[dx,dy]=deg(lat,ux*len,uy*len),pts=[];
+   for(const c of ring)pts.push(c,[c[0]+dx,c[1]+dy]);
+   const h=hull(pts);if(h.length>2)polys.push([h.concat([h[0]])]);
+  }
+ }
+ for(const q of tr.values()){
+  if(q.k===0){
+   if(q.lng<w||q.lng>e||q.lat<s||q.lat>n)continue;
+   nt++;
+   const off=Math.min(150,q.h*.65/te),a=Math.min(200,Math.max(q.r,q.r/se)+q.h*.35/te),ring=[];
+   for(let i=0;i<14;i++){
+    const t=i/14*2*Math.PI,al=off+Math.cos(t)*a,pe=Math.sin(t)*q.r,[dx,dy]=deg(q.lat,al*ux-pe*uy,al*uy+pe*ux);
+    ring.push([q.lng+dx,q.lat+dy]);
+   }
+   ring.push(ring[0]);polys.push([ring]);
+  }else{
+   if(q.bx[2]<w||q.bx[0]>e||q.bx[3]<s||q.bx[1]>n)continue;
+   nt++;
+   const len=Math.min(300,q.h/te),[dx,dy]=deg(q.lat,ux*len,uy*len),parts=[[q.ring]];
+   parts.push([q.ring.map(c=>[c[0]+dx,c[1]+dy])]);
+   for(let i=0;i<q.ring.length-1;i++){const a=q.ring[i],c=q.ring[i+1];parts.push([[a,c,[c[0]+dx,c[1]+dy],[a[0]+dx,a[1]+dy],a]]);}
+   try{for(const p of PC.union(parts[0],...parts.slice(1)))polys.push(p);}
+   catch(err){const h=hull(q.ring.concat(q.ring.map(c=>[c[0]+dx,c[1]+dy])));if(h.length>2)polys.push([h.concat([h[0]])]);}
+  }
+ }
+ let merged=null;
+ if(PC&&polys.length>1&&polys.length<5000){try{merged=PC.union(polys[0],...polys.slice(1));}catch(err){merged=null;}}
+ if(merged)out.push({type:'Feature',properties:{},geometry:{type:'MultiPolygon',coordinates:merged}});
+ else for(const p of polys)out.push({type:'Feature',properties:{},geometry:{type:'Polygon',coordinates:p}});
+ map.getSource('shd').setData({type:'FeatureCollection',features:out});
+ say(map.getZoom()>=15?nb+' bâtiments · '+nt+' arbres/bois (OSM) dans la vue':'');
+}
+function shadows(){
+ if(!ready)return;
+ const empty={type:'FeatureCollection',features:[]};
+ if(sun.el<=1){map.getSource('shd').setData(empty);map.setLayoutProperty('lids','visibility','none');say('Soleil sous l\'horizon.');return;}
+ if(lid){drawLid();map.getSource('shd').setData(empty);say('');return;}
+ osmShadows();
+}
+const later=()=>{if(!tShadow)tShadow=setTimeout(()=>{tShadow=0;shadows();},120);};
+
+function refresh(){
+ const d=new Date(yr,0,+D.value);
+ $('dv').textContent=d.getDate()+' '+MO[d.getMonth()];$('tv').textContent=hh(+T.value);
+ if(!ready)return;
+ const c=map.getCenter();sun=sunPos(when(),c.lat,c.lng);
+ try{map.setLight({anchor:'map',position:[1.5,sun.az,Math.max(0,90-sun.el)],intensity:.5,color:'#fff'});}catch(e){}
+ map.setPaintProperty('hill','hillshade-illumination-direction',sun.az);
+ map.setPaintProperty('hill','hillshade-exaggeration',sun.el>0?Math.min(1,.5+.5*Math.exp(-sun.el/30)):0);
+ later();
+}
+
+/* ---------- Overpass : miroirs en parallèle + 3 tentatives ---------- */
+function once(q){
+ const ac=new AbortController(),body='data='+encodeURIComponent(q);
+ return new Promise((ok,ko)=>{
+  let n=SRV.length,last;const t=setTimeout(()=>ac.abort(),25000);
+  SRV.forEach(u=>fetch(u,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body,signal:ac.signal})
+   .then(r=>{if(!r.ok)throw new Error(u.split('/')[2]+' HTTP '+r.status);return r.json();})
+   .then(j=>{clearTimeout(t);ac.abort();ok(j);})
+   .catch(e=>{last=e;if(--n===0){clearTimeout(t);ko(new Error(last.name==='AbortError'?'délai dépassé':last.message));}}));
+ });
+}
+async function overpass(q){
+ let err;
+ for(let k=0;k<3;k++){
+  try{return await once(q);}
+  catch(e){err=e;if(k<2){say('Overpass saturé : nouvelle tentative '+(k+2)+'/3...');await new Promise(r=>setTimeout(r,1200*(k+1)));}}
+ }
+ throw err;
+}
+const bb=b=>b[1]+','+b[0]+','+b[3]+','+b[2],
+ qT=b=>'[out:json][timeout:25];(node["natural"="tree"]('+bb(b)+');way["natural"="tree_row"]('+bb(b)+');way["natural"="wood"]('+bb(b)+');way["landuse"="forest"]('+bb(b)+'););out tags geom;';
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v)),closed=g=>g.length>3&&g[0][0]===g[g.length-1][0]&&g[0][1]===g[g.length-1][1];
+
+function ingestT(data){
+ if(tr.size>20000){tr.clear();boxT.length=0;}
+ for(const e of data.elements){
+  const t=e.tags||{};let h=parseFloat(t.height);
+  if(e.type==='node'){
+   h=clamp(isFinite(h)?h:8,3,40);
+   tr.set('n'+e.id,{k:0,lng:e.lon,lat:e.lat,h,r:Math.max(1.5,(parseFloat(t.diameter_crown)||h*.6)/2)});
+  }else if(e.type==='way'&&e.geometry){
+   const g=e.geometry.map(p=>[p.lon,p.lat]);
+   if(t.natural==='tree_row'){
+    h=clamp(isFinite(h)?h:8,3,40);let i=0;
+    for(let j=0;j<g.length-1&&i<300;j++){
+     const a=g[j],c=g[j+1],m=Math.hypot((c[0]-a[0])*111320*Math.cos(a[1]*R),(c[1]-a[1])*111320),k=Math.max(1,Math.ceil(m/6));
+     for(let s=0;s<k;s++,i++)tr.set('r'+e.id+'_'+i,{k:0,lng:a[0]+(c[0]-a[0])*s/k,lat:a[1]+(c[1]-a[1])*s/k,h,r:Math.max(1.5,h*.3)});
+    }
+   }else if(closed(g)){
+    const st=Math.ceil(g.length/80),ring=g.filter((p,i)=>i%st===0);ring.push(ring[0]);
+    const xs=ring.map(p=>p[0]),ys=ring.map(p=>p[1]);
+    tr.set('w'+e.id,{k:1,ring,h:clamp(isFinite(h)?h:15,5,40),lat:ys[0],bx:[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]});
+   }
+  }
+ }
+}
+/* ---------- arbres visibles : couronnes polygonales extrudées en 3D ---------- */
+function treeGeoJSON(){
+ const features=[];
+ for(const q of tr.values()){
+  if(q.k!==0)continue;
+  const radius=Math.max(1.5,Math.min(5.5,q.r||2.5)),coords=[];
+  for(let i=0;i<=12;i++){const a=i/12*Math.PI*2;coords.push([q.lng+Math.cos(a)*radius/(111320*Math.cos(q.lat*R)),q.lat+Math.sin(a)*radius/111320]);}
+  features.push({type:'Feature',properties:{height:Math.max(3,q.h||8)},geometry:{type:'Polygon',coordinates:[coords]}});
+ }
+ return{type:'FeatureCollection',features};
+}
+function updateTrees(){const src=map.getSource('trees3d');if(src)src.setData(treeGeoJSON());}
+const cov=(boxes,b)=>boxes.some(x=>b.getWest()>=x[0]&&b.getSouth()>=x[1]&&b.getEast()<=x[2]&&b.getNorth()<=x[3]);
+function run(box){
+ boxT.push(box);const tid=tstart('arbres OSM',4000);
+ overpass(qT(box)).then(d=>{ingestT(d);updateTrees();if(!boxT.includes(box))boxT.push(box);shadows();},
+  e=>{const i=boxT.indexOf(box);if(i>=0)boxT.splice(i,1);say('Échec Overpass : '+(e.message||e)+'. Déplace la carte pour réessayer.');}).finally(()=>tend(tid));
+}
+function load(){
+ if(!ready||map.getZoom()<16)return;
+ const b=map.getBounds(),px=(b.getEast()-b.getWest())*.1,py=(b.getNorth()-b.getSouth())*.1;
+ if(!cov(boxT,b))run([b.getWest()-px,b.getSouth()-py,b.getEast()+px,b.getNorth()+py]);
+}
+
+/* ---------- préchargement : les requêtes partent avant la fin du chargement de la carte ---------- */
+const tidM=tstart('carte et bâtiments',2500);
+
+const style={version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',sources:{sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:18,attribution:'Imagery © Esri | LiDAR HD © IGN'},ofm:{type:'vector',url:'https://tiles.openfreemap.org/planet'}},layers:[{id:'sat',type:'raster',source:'sat'}]};
+map=new maplibregl.Map({container:'map',style,bounds:[[-5.6,41.0],[10.0,51.6]],fitBoundsOptions:{padding:8},attributionControl:{compact:true},maxZoom:19,maxPitch:80,canvasContextAttributes:{antialias:true}});
+map.dragRotate.enable();map.touchPitch.enable();map.touchZoomRotate.enable();
+map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+map.addControl(new maplibregl.ScaleControl({maxWidth:120,unit:'metric'}),'bottom-right');
+const hideAttr=()=>{const a=document.querySelector('.maplibregl-ctrl-attrib');if(a){a.removeAttribute('open');a.classList.remove('maplibregl-compact-show');}};
+map.once('load',hideAttr);
+map.on('sourcedata',e=>{if(e.sourceId==='ofm'&&e.tile)needMesh=true;});
+map.on('idle',()=>{if(needMesh){needMesh=false;scheduleMesh();}});
+map.once('idle',()=>{tend(tidM);later();hideAttr();});
+
+map.on('load',()=>{
+ map.addSource('dem',{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],encoding:'terrarium',tileSize:256,maxzoom:15,attribution:'Relief : Mapzen / AWS'});
+ map.addLayer({id:'hill',type:'hillshade',source:'dem',paint:{'hillshade-exaggeration':.5,'hillshade-shadow-color':'#000000','hillshade-accent-color':'#000000','hillshade-highlight-color':'rgba(0,0,0,0)','hillshade-illumination-anchor':'map','hillshade-illumination-direction':180}});
+ const co0=[[C0[0]-.01,C0[1]+.01],[C0[0]+.01,C0[1]+.01],[C0[0]+.01,C0[1]-.01],[C0[0]-.01,C0[1]-.01]];
+ map.addSource('lids',{type:'image',url:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',coordinates:co0});
+ map.addLayer({id:'lids',type:'raster',source:'lids',layout:{visibility:'none'},paint:{'raster-opacity':.25,'raster-fade-duration':0}});
+ map.addSource('trees3d',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+ map.addLayer({id:'trees3d-trunks',type:'fill-extrusion',source:'trees3d',minzoom:15,paint:{'fill-extrusion-color':'#60452d','fill-extrusion-base':0,'fill-extrusion-height':2.1,'fill-extrusion-opacity':1}});
+ map.addLayer({id:'trees3d-crowns',type:'fill-extrusion',source:'trees3d',minzoom:15,paint:{'fill-extrusion-color':'#315f35','fill-extrusion-base':2,'fill-extrusion-height':['get','height'],'fill-extrusion-opacity':1}});
+ map.addLayer({id:'bridges-casing',type:'line',source:'ofm','source-layer':'transportation',minzoom:13,filter:['==',['get','brunnel'],'bridge'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#514b43','line-width':['interpolate',['linear'],['zoom'],13,3,17,9,19,15],'line-opacity':1}});
+ map.addLayer({id:'bridges-deck',type:'line',source:'ofm','source-layer':'transportation',minzoom:13,filter:['==',['get','brunnel'],'bridge'],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#b9aa8f','line-width':['interpolate',['linear'],['zoom'],13,1.5,17,5,19,9],'line-opacity':1}});
+ map.addSource('shd',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+ map.addLayer({id:'shd',type:'fill',source:'shd',paint:{'fill-color':'#000000','fill-opacity':.25}});
+ map.addImage('stone',stoneTex());map.addImage('tiles',tileTex());
+ const hB=['coalesce',['get','render_height'],5],bB=['coalesce',['get','render_min_height'],0],wH=['max',bB,['-',hB,.4]],fl=['!=',['get','hide_3d'],true];
+ map.addLayer({id:'bld3d',type:'fill-extrusion',source:'ofm','source-layer':'building',minzoom:14,filter:fl,paint:{'fill-extrusion-pattern':'stone','fill-extrusion-height':wH,'fill-extrusion-base':bB,'fill-extrusion-opacity':1}});
+ map.addLayer({id:'bld3d-roof',type:'fill-extrusion',source:'ofm','source-layer':'building',minzoom:14,filter:fl,paint:{'fill-extrusion-pattern':'tiles','fill-extrusion-height':hB,'fill-extrusion-base':wH,'fill-extrusion-opacity':1}});
+ const lab=(id,cls,min,size)=>map.addLayer({id,type:'symbol',source:'ofm','source-layer':'place',minzoom:min,maxzoom:16,filter:['==',['get','class'],cls],layout:{'text-field':['get','name'],'text-font':['Noto Sans Regular'],'text-size':size,'symbol-sort-key':['coalesce',['get','rank'],99],'text-padding':3,'text-max-width':8},paint:{'text-color':'#ffffff','text-halo-color':'rgba(0,0,0,0.8)','text-halo-width':1.5}});
+ lab('pl-city','city',3,['interpolate',['linear'],['zoom'],3,11,9,18]);
+ lab('pl-town','town',6,['interpolate',['linear'],['zoom'],6,10,12,15]);
+ lab('pl-village','village',9,['interpolate',['linear'],['zoom'],9,9,14,13]);
+ lab('pl-suburb','suburb',12,['interpolate',['linear'],['zoom'],12,10,15,13]);
+if(USE_GL)map.addLayer(cl,'pl-city');
+ try{map.setTerrain({source:'dem',exaggeration:1});}catch(e){}
+ ready=true;refresh();
+});
+map.on('moveend',()=>{
+ refresh();clearTimeout(tBuild);tBuild=setTimeout(()=>{load();loadLidar();},400);
+ const b=map.getBounds();
+ if(!mb||b.getWest()<mb.w+.003||b.getEast()>mb.e-.003||b.getSouth()<mb.s+.003||b.getNorth()>mb.n-.003)scheduleMesh();
+});
+D.addEventListener('input',refresh);
+T.addEventListener('input',refresh);
+refresh();
+
+const sg=$('sg');let sgT=0,sgItems=[];
+const fly=c=>{sg.style.display='none';map.flyTo({center:c,zoom:17,pitch:60,bearing:-20});};
+async function suggest(){
+ const q=$('q').value.trim();
+ if(q.length<2||(/^\d+$/.test(q)&&q.length!==5)){sg.style.display='none';sgItems=[];return;}
+ try{
+  const r=await fetch('https://geo.api.gouv.fr/communes?fields=nom,codesPostaux,centre,departement&limit=7&boost=population&'+(/^\d{5}$/.test(q)?'codePostal='+q:'nom='+encodeURIComponent(q))),j=await r.json();
+  if($('q').value.trim()!==q)return;
+  sgItems=j.filter(c=>c.centre);sg.innerHTML='';
+  for(const c of sgItems){
+   const cp=c.codesPostaux||[],d=document.createElement('div');
+   d.textContent=c.nom+(cp.length?' ('+(cp.length>1?cp[0]+' - '+cp[cp.length-1]:cp[0])+')':'')+(c.departement?' · '+c.departement.nom:'');
+   d.onclick=()=>{$('q').value=c.nom;fly(c.centre.coordinates);};
+   sg.appendChild(d);
+  }
+  sg.style.display=sgItems.length?'block':'none';
+ }catch(e){say('Recherche impossible : '+(e.message||e));}
+}
+$('q').addEventListener('input',()=>{clearTimeout(sgT);sgT=setTimeout(suggest,200);});
+const go=async()=>{clearTimeout(sgT);await suggest();if(sgItems.length)fly(sgItems[0].centre.coordinates);else say('Ville introuvable.');};
+$('go').onclick=go;
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+document.addEventListener('click',e=>{if(!e.target.closest('#p'))sg.style.display='none';});
+$('gps').onclick=()=>{
+ if(!navigator.geolocation)return say('Géolocalisation indisponible.');
+ navigator.geolocation.getCurrentPosition(p=>fly([p.coords.longitude,p.coords.latitude]),e=>say('Position refusée : '+e.message));
+};
+})();
+</script>
+</body>
+</html>
